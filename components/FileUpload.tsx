@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Upload, Check, File, Zap } from "lucide-react";
 
 export default function FileUpload() {
     const [file, setFile] = useState<File | null>(null);
@@ -9,11 +10,9 @@ export default function FileUpload() {
     const [downloadLink, setDownloadLink] = useState("");
     const [uploadTime, setUploadTime] = useState<string>("");
 
-    // Match server client uploader defaults: 5 KB chunks (small for demo/testing)
-    const CHUNK_SIZE = 5 * 1024; // 5 KB per chunk
+    const CHUNK_SIZE = 5 * 1024;
     const API_URL = process.env.NEXT_PUBLIC_SERVER_URL;
 
-    // helper: convert ArrayBuffer (from crypto.subtle.digest) to hex string
     const bufferToHex = (buf: ArrayBuffer) => {
         const arr = new Uint8Array(buf);
         return Array.from(arr)
@@ -28,7 +27,6 @@ export default function FileUpload() {
         setUploadTime("");
     };
 
-    // Upload a single chunk with PUT to /upload/{uploadID}/{idx}
     const uploadChunk = async (uploadID: string, idx: number, chunk: Blob, contentType = "application/octet-stream") => {
         const res = await fetch(`${API_URL}/upload/${uploadID}/${idx}`, {
             method: "PUT",
@@ -52,10 +50,8 @@ export default function FileUpload() {
         const uploadID = `${file.name.replace(/[^a-z0-9.-_]/gi, "")}-${Date.now()}`;
         const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
-        // compute per-chunk hashes and overall hash
         const chunkHashes: string[] = new Array(totalChunks);
         try {
-            // compute chunk hashes
             for (let i = 0; i < totalChunks; i++) {
                 const start = i * CHUNK_SIZE;
                 const end = Math.min(start + CHUNK_SIZE, file.size);
@@ -65,12 +61,10 @@ export default function FileUpload() {
                 chunkHashes[i] = bufferToHex(digest);
             }
 
-            // compute overall hash (digest of entire file)
             const whole = await file.arrayBuffer();
             const overallDigest = await crypto.subtle.digest("SHA-256", whole);
             const fileHash = bufferToHex(overallDigest);
 
-            // init metadata on server
             const metadata = {
                 upload_id: uploadID,
                 filename: file.name,
@@ -90,7 +84,6 @@ export default function FileUpload() {
                 throw new Error(`init failed: ${initRes.status} ${t}`);
             }
 
-            // query status to resume if needed
             const statusRes = await fetch(`${API_URL}/status/${uploadID}`);
             let received: number[] = [];
             if (statusRes.ok) {
@@ -99,7 +92,6 @@ export default function FileUpload() {
             }
             const receivedSet = new Set<number>(received);
 
-            // upload missing chunks
             let uploadedCount = 0;
 
             const uploadWithRetry = async (idx: number, attempt = 1): Promise<void> => {
@@ -113,7 +105,6 @@ export default function FileUpload() {
                     setProgress(Math.round((uploadedCount / totalChunks) * 100));
                 } catch (err) {
                     if (attempt < 5) {
-                        // backoff
                         await new Promise((r) => setTimeout(r, attempt * 300));
                         return uploadWithRetry(idx, attempt + 1);
                     }
@@ -122,7 +113,6 @@ export default function FileUpload() {
             };
 
             if (parallel) {
-                // Fixed parallel upload: batch chunks into groups and upload each batch concurrently
                 const MAX_WORKERS = 4;
                 const chunksToUpload: number[] = [];
                 for (let i = 0; i < totalChunks; i++) {
@@ -131,7 +121,6 @@ export default function FileUpload() {
                     }
                 }
 
-                // Process chunks in batches of MAX_WORKERS
                 for (let i = 0; i < chunksToUpload.length; i += MAX_WORKERS) {
                     const batch = chunksToUpload.slice(i, i + MAX_WORKERS);
                     await Promise.all(batch.map(idx => uploadWithRetry(idx)));
@@ -143,7 +132,6 @@ export default function FileUpload() {
                 }
             }
 
-            // complete
             const completeRes = await fetch(`${API_URL}/complete/${uploadID}`, {
                 method: "POST",
             });
@@ -156,7 +144,6 @@ export default function FileUpload() {
             const durationSeconds = ((endTime - startTime) / 1000).toFixed(2);
             setUploadTime(`${durationSeconds}s`);
 
-            // Construct public download URL (server serves /static)
             const downloadUrl = `${API_URL.replace(/\/$/, "")}/static/${uploadID}/${encodeURIComponent(file.name)}`;
             setDownloadLink(downloadUrl);
         } catch (err: any) {
@@ -166,63 +153,178 @@ export default function FileUpload() {
         }
     };
 
+    const formatFileSize = (bytes: number) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+    };
+
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-950 text-white p-6">
-            <div className="w-full max-w-md bg-gray-900 rounded-2xl p-6 shadow-lg">
-                <h1 className="text-2xl font-bold mb-4 text-center text-blue-400">
-                    AetherLink File Sender
-                </h1>
+        <div className="min-h-screen bg-linear-to-br from-slate-950 via-blue-950 to-slate-950 flex items-center justify-center p-4">
+            {/* Animated background elements */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
+                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-700"></div>
+            </div>
 
-                <input
-                    type="file"
-                    onChange={handleFileChange}
-                    className="w-full text-sm text-gray-400 mb-4"
-                />
+            <div className="relative w-full max-w-xl">
+                {/* Main Card */}
+                <div className="bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-800/50 overflow-hidden">
+                    {/* Header with gradient */}
+                    <div className="bg-linear-to-r from-blue-600 to-purple-600 p-8 text-center relative overflow-hidden">
+                        <div className="absolute inset-0 bg-black/20"></div>
+                        <div className="relative z-10">
+                            <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-2xl mb-4 backdrop-blur-sm">
+                                <Upload className="w-8 h-8 text-white" />
+                            </div>
+                            <h1 className="text-3xl font-bold text-white mb-2">
+                                AetherLink
+                            </h1>
+                            <p className="text-blue-100 text-sm">Secure & Fast File Transfer</p>
+                        </div>
+                    </div>
 
-                <div className="flex items-center mb-4 justify-between">
-                    <label className="flex items-center space-x-2">
-                        <input
-                            type="checkbox"
-                            checked={parallel}
-                            onChange={() => setParallel(!parallel)}
-                        />
-                        <span className="text-sm">Enable Parallel Upload (Beta)</span>
-                    </label>
+                    {/* Content */}
+                    <div className="p-8 space-y-6">
+                        {/* File Upload Area */}
+                        <div className="relative">
+                            <input
+                                type="file"
+                                id="file-upload"
+                                onChange={handleFileChange}
+                                className="hidden"
+                            />
+                            <label
+                                htmlFor="file-upload"
+                                className={`block w-full p-8 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300 ${
+                                    file
+                                        ? 'border-blue-500 bg-blue-500/10'
+                                        : 'border-slate-700 bg-slate-800/50 hover:border-blue-500/50 hover:bg-slate-800'
+                                }`}
+                            >
+                                <div className="flex flex-col items-center justify-center space-y-3">
+                                    {file ? (
+                                        <>
+                                            <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                                                <File className="w-6 h-6 text-blue-400" />
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-white font-medium">{file.name}</p>
+                                                <p className="text-slate-400 text-sm mt-1">{formatFileSize(file.size)}</p>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div className="w-12 h-12 bg-slate-700/50 rounded-xl flex items-center justify-center">
+                                                <Upload className="w-6 h-6 text-slate-400" />
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-white font-medium">Choose a file</p>
+                                                <p className="text-slate-400 text-sm mt-1">or drag and drop here</p>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </label>
+                        </div>
+
+                        {/* Parallel Upload Toggle */}
+                        <div className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                            <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                                    <Zap className="w-5 h-5 text-purple-400" />
+                                </div>
+                                <div>
+                                    <p className="text-white font-medium text-sm">Parallel Upload</p>
+                                    <p className="text-slate-400 text-xs">Faster transfers (Beta)</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setParallel(!parallel)}
+                                className={`relative w-12 h-6 rounded-full transition-colors duration-300 ${
+                                    parallel ? 'bg-blue-500' : 'bg-slate-700'
+                                }`}
+                            >
+                                <div
+                                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300 ${
+                                        parallel ? 'transform translate-x-6' : ''
+                                    }`}
+                                ></div>
+                            </button>
+                        </div>
+
+                        {/* Upload Button */}
+                        <button
+                            disabled={!file || isUploading}
+                            onClick={startUpload}
+                            className="w-full bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-semibold py-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.02] disabled:hover:scale-100 disabled:shadow-none"
+                        >
+                            {isUploading ? (
+                                <span className="flex items-center justify-center space-x-2">
+                                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span>Uploading... {progress}%</span>
+                                </span>
+                            ) : (
+                                <span className="flex items-center justify-center space-x-2">
+                                    <Upload className="w-5 h-5" />
+                                    <span>Start Upload</span>
+                                </span>
+                            )}
+                        </button>
+
+                        {/* Progress Bar */}
+                        {isUploading && (
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-slate-400">Progress</span>
+                                    <span className="text-blue-400 font-semibold">{progress}%</span>
+                                </div>
+                                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-linear-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-300 ease-out"
+                                        style={{ width: `${progress}%` }}
+                                    ></div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Success Message */}
+                        {downloadLink && (
+                            <div className="bg-linear-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-2xl p-6 space-y-4">
+                                <div className="flex items-center space-x-3">
+                                    <div className="w-10 h-10 bg-green-500/30 rounded-xl flex items-center justify-center">
+                                        <Check className="w-6 h-6 text-green-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-green-400 font-semibold">Upload Complete!</p>
+                                        <p className="text-green-300/70 text-sm">Finished in {uploadTime}</p>
+                                    </div>
+                                </div>
+                                <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50">
+                                    <p className="text-slate-400 text-xs mb-2 uppercase tracking-wider">Download Link</p>
+                                    <a
+                                        href={downloadLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-400 hover:text-blue-300 break-all text-sm underline decoration-blue-400/30 hover:decoration-blue-400 transition-colors"
+                                    >
+                                        {downloadLink}
+                                    </a>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                <button
-                    disabled={!file || isUploading}
-                    onClick={startUpload}
-                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 rounded-xl py-2 font-semibold"
-                >
-                    {isUploading ? "Uploading..." : "Upload"}
-                </button>
-
-                {isUploading && (
-                    <div className="w-full bg-gray-700 rounded-full h-2 mt-4">
-                        <div
-                            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${progress}%` }}
-                        />
-                    </div>
-                )}
-
-                {downloadLink && (
-                    <div className="mt-4 text-center">
-                        <p className="text-green-400 font-semibold mb-2">
-                            ✓ Upload completed in {uploadTime}
-                        </p>
-                        <p className="text-sm text-gray-400 mb-1">Download URL:</p>
-                        <a 
-                            href={downloadLink} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-400 hover:text-blue-300 break-all text-sm underline"
-                        >
-                            {downloadLink}
-                        </a>
-                    </div>
-                )}
+                {/* Footer */}
+                <div className="text-center mt-6">
+                    <p className="text-slate-500 text-sm">Powered by AetherLink • Secure File Transfer</p>
+                </div>
             </div>
         </div>
     );

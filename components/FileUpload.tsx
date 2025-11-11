@@ -15,7 +15,7 @@ export default function SendPage() {
   const [sseStatus, setSseStatus] = useState<any>(null);
 
   const CHUNK_SIZE = 1024 * 1024;
-  const API_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:8080";
+  const API_URL = process.env.NEXT_PUBLIC_wSERVER_URL || "http://localhost:8080";
 
   const sseRef = useRef<EventSource | null>(null);
 

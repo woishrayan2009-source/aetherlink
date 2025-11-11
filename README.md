@@ -1,36 +1,106 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AetherLink
+
+**Resilient file transfer system with chunked uploads, resume capability, integrity verification, and real-time progress tracking.**
+
+## What This Is
+
+A distributed file transfer platform that chunks files for reliable uploads with automatic resume, hash-based integrity checks, and live progress updates via Server-Sent Events.
+
+## Tech Stack
+
+### Frontend (Next.js 16)
+- **Framework**: React 19, TypeScript 5, Next.js 16
+- **Styling**: Tailwind CSS 4, Lucide React icons
+- **Features**: Drag-drop file upload, progress bars, parallel/sequential upload modes
+- **Security**: SHA-256 client-side hashing (per-chunk + full file)
+- **Real-time**: SSE for live progress updates
+- **Persistence**: localStorage for resumable sessions
+
+### Backend (Go - Orchestrator)
+- **Framework**: Fiber v2 (REST + SSE)
+- **Storage**: File-based chunked storage in `./storage/<uploadID>/`
+- **Endpoints**:
+  - `POST /init` - Initialize upload session
+  - `PUT /upload/:uploadID/:idx` - Upload chunk with hash validation
+  - `GET /status/:uploadID` - Query received chunks (resume support)
+  - `POST /complete/:uploadID` - Reassemble & verify file
+  - `GET /events/:uploadID` - SSE progress stream
+  - `GET /static` - Download assembled files
+- **Security**: Per-chunk SHA-256 validation, final file hash verification
+- **Metadata**: Priority tagging (`.prio`), hash tracking (`.sha256`)
+
+### Go Client (CLI)
+- **Purpose**: Command-line bulk uploader
+- **Config**: 5KB chunks, 4 parallel workers, 5 retry attempts
+- **Features**: Resume from interruption, exponential backoff
+
+## Features
+
+- ✅ **Chunked Upload**: 1MB chunks (configurable)
+- ✅ **Resume Support**: Query received chunks, skip completed ones
+- ✅ **Integrity Checks**: SHA-256 validation per chunk + full file
+- ✅ **Parallel Mode**: Toggle between sequential/parallel (4 workers)
+- ✅ **Real-time Progress**: SSE broadcast to all clients
+- ✅ **Auto-reassembly**: Server stitches chunks on `/complete`
+- ✅ **Retry Logic**: Exponential backoff (up to 6 attempts)
+- ✅ **Priority Tagging**: `X-Priority` header support
+- ✅ **CORS Enabled**: Configured for `localhost:3000`
 
 ## Getting Started
 
-First, run the development server:
-
+### Frontend (Next.js)
 ```bash
-npm run dev
-# or
+# Install dependencies
+yarn install
+
+# Run development server
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+Open [http://localhost:3000](http://localhost:3000)
+
+### Backend (Go Orchestrator)
+```bash
+cd server/orchestrator
+go run main.go
+```
+Server runs on [http://localhost:8080](http://localhost:8080)
+
+### CLI Client (Go)
+```bash
+cd server/client
+go run uploader.go <upload-id> <file-path>
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Architecture
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+┌─────────────┐         ┌──────────────┐         ┌─────────────┐
+│   Browser   │◄───SSE──┤ Orchestrator │◄────────┤  CLI Client │
+│  (Next.js)  │────────►│   (Fiber)    │         │    (Go)     │
+└─────────────┘  REST   └──────────────┘         └─────────────┘
+     │                         │
+     │                         ▼
+     │                  ┌─────────────┐
+     └─────────────────►│   Storage   │
+          Download      │  (chunks)   │
+                        └─────────────┘
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Current State
 
-## Learn More
+- ✅ Fully functional upload/download system
+- ✅ Multiple completed upload sessions in storage
+- ✅ Test files successfully transferred (25+ chunks processed)
+- ✅ Real-time progress tracking operational
+- ✅ Resume capability tested and working
 
-To learn more about Next.js, take a look at the following resources:
+## Environment Variables
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Create `.env.local`:
+```bash
+NEXT_PUBLIC_wSERVER_URL=http://localhost:8080
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## License
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT

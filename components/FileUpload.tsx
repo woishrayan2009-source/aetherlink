@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Upload, Check, File, Zap } from "lucide-react";
+import { bufferToHex, uploadChunk, formatFileSize } from "@/utils/helpers/file";
+import axios from "axios";
 
 type InitResponse = { upload_id: string };
 type CompleteResponse = { status: string; download_url?: string; file_hash?: string };
@@ -14,17 +16,12 @@ export default function SendPage() {
   const [uploadTime, setUploadTime] = useState<string>("");
   const [sseStatus, setSseStatus] = useState<any>(null);
 
-  const CHUNK_SIZE = 1024 * 1024;
-  const API_URL = process.env.NEXT_PUBLIC_wSERVER_URL || "http://localhost:8080";
-
   const sseRef = useRef<EventSource | null>(null);
 
-  const bufferToHex = (buf: ArrayBuffer) => {
-    const arr = new Uint8Array(buf);
-    return Array.from(arr)
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  };
+  const MAX_WORKERS = 4;
+  const CHUNK_SIZE = 10 * 1024 * 1024;
+  const API_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:8080";
+
 
   useEffect(() => {
     return () => {
@@ -40,19 +37,6 @@ export default function SendPage() {
     setDownloadLink("");
     setUploadTime("");
   };
-
-  async function uploadChunk(uploadID: string, idx: number, chunk: Blob, priority = "normal") {
-    const res = await fetch(`${API_URL}/upload/${uploadID}/${idx}`, {
-      method: "PUT",
-      headers: { "Content-Type": chunk.type || "application/octet-stream", "X-Priority": priority },
-      body: chunk,
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`chunk ${idx} failed: ${res.status} ${text}`);
-    }
-    return true;
-  }
 
   const startSSE = (uploadID: string) => {
     if (sseRef.current) {
@@ -70,10 +54,9 @@ export default function SendPage() {
           const p = Math.round((data.received_count * 100) / data.total_chunks);
           setProgress(p);
         }
-      } catch (e) {}
+      } catch (e) { }
     };
     src.onerror = () => {
-      // SSE might close; we'll rely on polling via /status if needed
       src.close();
       sseRef.current = null;
     };
@@ -91,7 +74,8 @@ export default function SendPage() {
     const uploadID = `${file.name.replace(/[^a-z0-9.-_]/gi, "")}-${Date.now()}`;
     const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
-    // compute chunk hashes and overall file hash
+    // -------------------------------------- chunking -----------------------------------------------//
+
     const chunkHashes: string[] = new Array(totalChunks);
     try {
       for (let i = 0; i < totalChunks; i++) {
@@ -116,34 +100,34 @@ export default function SendPage() {
         file_hash: fileHash,
       };
 
-      // persist session to localStorage to allow resume
       localStorage.setItem(`aetherlink:session:${uploadID}`, JSON.stringify({ uploadID, filename: file.name, totalChunks, createdAt: Date.now() }));
 
-      // init session
-      const initRes = await fetch(`${API_URL}/init`, {
-        method: "POST",
+      // ------------------------------------ initialization ---------------------------------------------//
+
+      const initRes = await axios.post(`${API_URL}/init`, metadata, {
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(metadata),
       });
       if (initRes.status !== 201) {
-        const t = await initRes.text().catch(() => "");
+        const t = await initRes.data.text().catch(() => "");
         throw new Error(`init failed: ${initRes.status} ${t}`);
       }
 
-      // subscribe SSE
       startSSE(uploadID);
 
-      // query status -> which chunks already present
-      const statusRes = await fetch(`${API_URL}/status/${uploadID}`);
+      // ------------------------------------- validation -----------------------------------------------//
+
+      const statusRes = await axios.get(`${API_URL}/status/${uploadID}`);
       let received: number[] = [];
-      if (statusRes.ok) {
-        const parsed = await statusRes.json().catch(() => ({}));
+      if (statusRes.status === 200) {
+        const parsed = statusRes.data as { received_chunks: number[] };
         received = parsed.received_chunks || [];
       }
       const receivedSet = new Set<number>(received);
 
       let uploadedCount = received.length;
       setProgress(Math.round((uploadedCount / totalChunks) * 100));
+
+      // ---------------------------------upload logic ----------------------------------------------//
 
       const uploadWithRetry = async (idx: number, attempt = 1): Promise<void> => {
         const start = idx * CHUNK_SIZE;
@@ -153,7 +137,6 @@ export default function SendPage() {
         try {
           await uploadChunk(uploadID, idx, blob, priority);
           uploadedCount++;
-          // update progress from count if SSE not active
           setProgress(Math.round((uploadedCount / totalChunks) * 100));
         } catch (err) {
           if (attempt < 6) {
@@ -164,32 +147,39 @@ export default function SendPage() {
         }
       };
 
+      // ---------------------------------- upload begins -------------------------------------------//
+
       if (parallel) {
-        const MAX_WORKERS = 4;
+        
         const chunksToUpload: number[] = [];
         for (let i = 0; i < totalChunks; i++) {
           if (!receivedSet.has(i)) chunksToUpload.push(i);
         }
+
         for (let i = 0; i < chunksToUpload.length; i += MAX_WORKERS) {
           const batch = chunksToUpload.slice(i, i + MAX_WORKERS);
           await Promise.all(batch.map((idx) => uploadWithRetry(idx)));
         }
-      } else {
+      }
+
+      else {
         for (let i = 0; i < totalChunks; i++) {
           if (receivedSet.has(i)) continue;
           await uploadWithRetry(i);
         }
       }
 
-      // complete
-      const completeRes = await fetch(`${API_URL}/complete/${uploadID}`, { method: "POST" });
-      if (!completeRes.ok) {
-        const t = await completeRes.text().catch(() => "");
+      // ------------------------------------ completion ----------------------------------------------//
+
+      const completeRes = await axios.post(`${API_URL}/complete/${uploadID}`);
+      if (!completeRes || completeRes.status !== 200) {
+        const t = completeRes.data.text().catch(() => "");
         throw new Error(`complete failed: ${completeRes.status} ${t}`);
       }
-      const completeJson = (await completeRes.json()) as CompleteResponse;
+      const completeJson = completeRes.data as CompleteResponse;
       const endTime = performance.now();
       setUploadTime(((endTime - startTime) / 1000).toFixed(2) + "s");
+
       if (completeJson.download_url) {
         const url = completeJson.download_url;
         setDownloadLink(`${API_URL.replace(/\/$/, "")}${url}`);
@@ -197,21 +187,18 @@ export default function SendPage() {
         setDownloadLink(`${API_URL.replace(/\/$/, "")}/static/${uploadID}/${encodeURIComponent(file.name)}`);
       }
 
-      // cleanup session persistence
-      localStorage.removeItem(`aetherlink:session:${uploadID}`);
-    } catch (err: any) {
+    }
+
+    // ------------------------------------- error handling -------------------------------------------//
+
+    catch (err: any) {
       alert("Upload failed: " + (err?.message || err));
-    } finally {
+    }
+
+    finally {
+      localStorage.removeItem(`aetherlink:session:${uploadID}`);
       setIsUploading(false);
     }
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
 
   return (

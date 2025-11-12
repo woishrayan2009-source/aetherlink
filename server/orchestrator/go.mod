@@ -1,4 +1,4 @@
-module aetherlink-server
+module aetherlink
 
 go 1.22.5
 

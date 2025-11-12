@@ -1,118 +1,20 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Upload, Check, File, Zap, Wifi, WifiOff } from "lucide-react";
-import { detectConnectionSpeed, bufferToHex, formatFileSize, uploadChunk } from "@/utils/helpers/file";
-import * as THREE from "three";
+import { Upload, Check, File, Zap, Wifi, Signal, Moon, Sun } from "lucide-react";
+import { bufferToHex, detectConnectionSpeed, uploadChunk  } from "@/utils/helpers/file";
+import { ChunkVisualizer } from "./ChunkVisualizer";
+import { NETWORK_PROFILES } from "@/types/NetworkProfile";
 
-const ChunkVisualizer = ({ progress, totalChunks, uploadedChunks }: { progress: number; totalChunks: number; uploadedChunks: number }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const sceneRef = useRef<THREE.Scene | null>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const chunksRef = useRef<THREE.Mesh[]>([]);
+// Helper function to format file size
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return "0 Bytes";
+  const k = 1024;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
+}
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    const scene = new THREE.Scene();
-    sceneRef.current = scene;
-
-    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
-    camera.position.z = 35;
-    camera.position.y = 5;
-    camera.lookAt(0, 0, 0);
-
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setSize(300, 300);
-    renderer.setClearColor(0x000000, 0);
-    containerRef.current.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
-
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
-
-    const pointLight = new THREE.PointLight(0x60a5fa, 1, 100);
-    pointLight.position.set(10, 10, 10);
-    scene.add(pointLight);
-
-    const pointLight2 = new THREE.PointLight(0xa855f7, 0.8, 100);
-    pointLight2.position.set(-10, -10, 10);
-    scene.add(pointLight2);
-
-    const chunks: THREE.Mesh[] = [];
-    const gridSize = Math.ceil(Math.sqrt(totalChunks));
-    const spacing = 2;
-
-    for (let i = 0; i < totalChunks; i++) {
-      const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
-      const material = new THREE.MeshPhongMaterial({
-        color: 0x1e293b,
-        transparent: true,
-        opacity: 0.3,
-        emissive: 0x1e293b,
-        emissiveIntensity: 0.1,
-      });
-      const cube = new THREE.Mesh(geometry, material);
-
-      const x = (i % gridSize) * spacing - (gridSize * spacing) / 2;
-      const z = Math.floor(i / gridSize) * spacing - (gridSize * spacing) / 2;
-
-      cube.position.set(x, -20, z);
-      cube.userData.targetY = 0;
-      cube.userData.uploaded = false;
-
-      scene.add(cube);
-      chunks.push(cube);
-    }
-    chunksRef.current = chunks;
-
-    const animate = () => {
-      requestAnimationFrame(animate);
-
-      chunks.forEach((cube, idx) => {
-        cube.rotation.x += 0.005;
-        cube.rotation.y += 0.005;
-
-        if (cube.userData.uploaded) {
-          cube.position.y += (cube.userData.targetY - cube.position.y) * 0.1;
-        }
-      });
-
-      renderer.render(scene, camera);
-    };
-    animate();
-
-    return () => {
-      renderer.dispose();
-      if (containerRef.current && renderer.domElement) {
-        containerRef.current.removeChild(renderer.domElement);
-      }
-    };
-  }, [totalChunks]);
-
-  useEffect(() => {
-    const chunksToActivate = Math.floor((uploadedChunks / totalChunks) * chunksRef.current.length);
-
-    chunksRef.current.forEach((cube, idx) => {
-      if (idx < chunksToActivate && !cube.userData.uploaded) {
-        cube.userData.uploaded = true;
-        cube.userData.targetY = 0;
-
-        (cube.material as THREE.MeshPhongMaterial).color.setHex(0x3b82f6);
-        (cube.material as THREE.MeshPhongMaterial).emissive.setHex(0x3b82f6);
-        (cube.material as THREE.MeshPhongMaterial).emissiveIntensity = 0.5;
-        (cube.material as THREE.MeshPhongMaterial).opacity = 1;
-      }
-    });
-  }, [uploadedChunks, totalChunks]);
-
-  return (
-    <div className="flex items-center justify-center">
-      <div ref={containerRef} className="rounded-2xl overflow-hidden" />
-    </div>
-  );
-};
-
-export default function FileUpload() {
+export default function SendPage() {
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -122,24 +24,33 @@ export default function FileUpload() {
   const [networkInfo, setNetworkInfo] = useState({ type: "Auto", chunkSize: 10 * 1024 * 1024 });
   const [totalChunks, setTotalChunks] = useState(0);
   const [uploadedChunks, setUploadedChunks] = useState(0);
+  const [selectedProfile, setSelectedProfile] = useState<string>("normal");
+  const [isDark, setIsDark] = useState(true);
 
-  const MAX_WORKERS = 4;
+  const currentProfile = NETWORK_PROFILES[selectedProfile];
   const API_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:8080";
 
   useEffect(() => {
     const updateNetwork = async () => {
-      const info = await detectConnectionSpeed();
-      setNetworkInfo(info);
+      if (selectedProfile === "normal") {
+        const info = await detectConnectionSpeed();
+        setNetworkInfo(info);
+      } else {
+        setNetworkInfo({
+          type: currentProfile.speed,
+          chunkSize: currentProfile.chunkSize
+        });
+      }
     };
-
+    
     updateNetwork();
-
+    
     const connection = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
     if (connection) {
       connection.addEventListener("change", updateNetwork);
       return () => connection.removeEventListener("change", updateNetwork);
     }
-  }, []);
+  }, [selectedProfile, currentProfile.speed, currentProfile.chunkSize]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFile(e.target.files?.[0] || null);
@@ -160,7 +71,8 @@ export default function FileUpload() {
 
     const startTime = performance.now();
     const uploadID = `${file.name.replace(/[^a-z0-9.-_]/gi, "")}-${Date.now()}`;
-    const CHUNK_SIZE = networkInfo.chunkSize;
+    const CHUNK_SIZE = currentProfile.chunkSize;
+    const MAX_WORKERS = currentProfile.workers;
     const chunks = Math.ceil(file.size / CHUNK_SIZE);
     setTotalChunks(chunks);
 
@@ -214,7 +126,7 @@ export default function FileUpload() {
         const blob = file.slice(start, end);
         const priority = "normal";
         try {
-          await uploadChunk(uploadID, idx, blob, priority);
+          await uploadChunk(uploadID, idx, blob, priority, currentProfile);
           uploadedCount++;
           setUploadedChunks(uploadedCount);
           setProgress(Math.round((uploadedCount / chunks) * 100));
@@ -246,7 +158,7 @@ export default function FileUpload() {
 
       const completeRes = await fetch(`${API_URL}/complete/${uploadID}`, { method: "POST" });
       if (!completeRes.ok) throw new Error(`complete failed: ${completeRes.status}`);
-
+      
       const completeJson = await completeRes.json() as { status: string; download_url?: string };
       const endTime = performance.now();
       setUploadTime(((endTime - startTime) / 1000).toFixed(2) + "s");
@@ -263,92 +175,223 @@ export default function FileUpload() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-linear-to-br from-slate-950 via-blue-950 to-slate-950 flex items-center justify-center p-4">
-      <div className="relative w-full max-w-xl">
-        <div className="relative backdrop-blur-2xl bg-white/5 rounded-3xl shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] border border-white/10 overflow-hidden">
-          <div className="absolute inset-0 bg-linear-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 pointer-events-none" />
+  const getStatusColor = () => {
+    switch (currentProfile.color) {
+      case "green": return isDark ? "text-green-400 bg-green-500/20 border-green-500/30" : "text-green-600 bg-green-100 border-green-300";
+      case "yellow": return isDark ? "text-yellow-400 bg-yellow-500/20 border-yellow-500/30" : "text-yellow-600 bg-yellow-100 border-yellow-300";
+      case "red": return isDark ? "text-red-400 bg-red-500/20 border-red-500/30" : "text-red-600 bg-red-100 border-red-300";
+      default: return isDark ? "text-cyan-400 bg-cyan-500/20 border-cyan-500/30" : "text-cyan-600 bg-cyan-100 border-cyan-300";
+    }
+  };
 
-          <div className="relative bg-linear-to-r from-blue-600/20 to-purple-600/20 backdrop-blur-xl p-8 text-center border-b border-white/10">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl mb-4 border border-white/20">
-              <Upload className="w-8 h-8 text-white" />
+  return (
+    <div className={`min-h-screen ${isDark ? 'dark bg-linear-to-br from-slate-950 via-cyan-950 to-slate-950' : 'bg-linear-to-br from-sky-50 via-cyan-50 to-blue-50'} flex items-center justify-center p-4 transition-colors duration-300`}>
+      <div className="absolute top-4 right-4">
+        <button
+          onClick={() => setIsDark(!isDark)}
+          className={`p-3 rounded-xl transition-all duration-300 ${
+            isDark 
+              ? 'bg-white/10 hover:bg-white/20 border border-white/20' 
+              : 'bg-cyan-100 hover:bg-cyan-200 border border-cyan-300'
+          }`}
+        >
+          {isDark ? <Sun className="w-5 h-5 text-yellow-300" /> : <Moon className="w-5 h-5 text-cyan-700" />}
+        </button>
+      </div>
+
+      <div className="relative w-full max-w-xl">
+        <div className={`relative backdrop-blur-2xl rounded-3xl shadow-2xl border overflow-hidden transition-all duration-300 ${
+          isDark 
+            ? 'bg-slate-900/40 border-white/10' 
+            : 'bg-white/60 border-cyan-200'
+        }`}>
+          <div className={`absolute inset-0 pointer-events-none ${
+            isDark 
+              ? 'bg-linear-to-br from-cyan-500/10 via-blue-500/10 to-cyan-500/10' 
+              : 'bg-linear-to-br from-cyan-200/20 via-blue-200/20 to-cyan-200/20'
+          }`} />
+          
+          <div className={`relative backdrop-blur-xl p-8 text-center border-b transition-all duration-300 ${
+            isDark 
+              ? 'bg-linear-to-r from-cyan-600/20 to-blue-600/20 border-white/10' 
+              : 'bg-linear-to-r from-cyan-200/60 to-blue-200/60 border-cyan-300'
+          }`}>
+            <div className={`inline-flex items-center justify-center w-16 h-16 backdrop-blur-md rounded-2xl mb-4 border transition-all duration-300 ${
+              isDark 
+                ? 'bg-white/10 border-white/20' 
+                : 'bg-white/80 border-cyan-300'
+            }`}>
+              <Upload className={`w-8 h-8 ${isDark ? 'text-cyan-300' : 'text-cyan-600'}`} />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">AetherLink</h1>
-            <p className="text-blue-100 text-sm">Secure & Resilient File Transfer</p>
+            <h1 className={`text-3xl font-bold mb-2 transition-colors duration-300 ${
+              isDark ? 'text-white' : 'text-cyan-900'
+            }`}>AetherLink</h1>
+            <p className={`text-sm transition-colors duration-300 ${
+              isDark ? 'text-cyan-100' : 'text-cyan-700'
+            }`}>Secure & Resilient File Transfer</p>
           </div>
 
           <div className="relative p-8 space-y-6">
-            <div className="flex items-center justify-between p-4 bg-white/5 backdrop-blur-xl rounded-xl border border-white/10">
+            <div className={`backdrop-blur-xl rounded-xl border p-4 transition-all duration-300 ${
+              isDark 
+                ? 'bg-white/5 border-white/10' 
+                : 'bg-white/80 border-cyan-200'
+            }`}>
+              <label className={`block text-sm font-medium mb-3 transition-colors duration-300 ${
+                isDark ? 'text-cyan-300' : 'text-cyan-700'
+              }`}>
+                Network Simulator
+              </label>
+              <select
+                value={selectedProfile}
+                onChange={(e) => setSelectedProfile(e.target.value)}
+                disabled={isUploading}
+                className={`w-full px-4 py-3 rounded-xl backdrop-blur-sm border transition-all duration-300 focus:outline-none focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isDark 
+                    ? 'bg-slate-800/50 border-white/20 text-white focus:ring-cyan-500/50' 
+                    : 'bg-white border-cyan-300 text-cyan-900 focus:ring-cyan-400'
+                }`}
+              >
+                {Object.values(NETWORK_PROFILES).map(profile => (
+                  <option key={profile.name} value={profile.name}>
+                    {profile.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={`flex items-center justify-between p-4 backdrop-blur-xl rounded-xl border transition-all duration-300 ${getStatusColor()}`}>
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-blue-500/20 backdrop-blur-sm rounded-lg flex items-center justify-center border border-blue-400/30">
-                  {networkInfo.type === "Auto" ? <Wifi className="w-5 h-5 text-blue-400" /> : <Wifi className="w-5 h-5 text-green-400" />}
+                <div className="w-10 h-10 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                  <Signal className="w-5 h-5" />
                 </div>
                 <div>
-                  <p className="text-white font-medium text-sm">Network: {networkInfo.type}</p>
-                  <p className="text-slate-300 text-xs">Chunk: {formatFileSize(networkInfo.chunkSize)}</p>
+                  <p className="font-semibold text-sm">{currentProfile.speed}</p>
+                  <p className="text-xs opacity-80">
+                    Latency: {currentProfile.delay}ms • Loss: {currentProfile.failureRate}%
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="relative">
-              <input type="file" id="file-upload" onChange={handleFileChange} className="hidden" />
-              <label
-                htmlFor="file-upload"
-                className={`block w-full p-8 border-2 border-dashed rounded-2xl cursor-pointer transition-all duration-300 backdrop-blur-xl ${file
-                  ? "border-blue-400/50 bg-blue-500/10"
-                  : "border-white/20 bg-white/5 hover:border-blue-400/50 hover:bg-white/10"
-                  }`}
+            <div className="relative group">
+              <input 
+                type="file" 
+                id="file-upload" 
+                onChange={handleFileChange} 
+                className="hidden" 
+              />
+              <label 
+                htmlFor="file-upload" 
+                className={`block relative overflow-hidden rounded-2xl cursor-pointer transition-all duration-300 ${
+                  file 
+                    ? isDark
+                      ? "bg-cyan-500/10 border-2 border-cyan-500/50" 
+                      : "bg-cyan-50 border-2 border-cyan-400"
+                    : isDark
+                      ? "bg-white/5 border-2 border-dashed border-white/20 hover:border-cyan-500/50 hover:bg-white/10" 
+                      : "bg-white/60 border-2 border-dashed border-cyan-300 hover:border-cyan-400 hover:bg-white/80"
+                }`}
               >
-                <div className="flex flex-col items-center justify-center space-y-3">
+                <div className="relative z-10 p-10 flex flex-col items-center justify-center space-y-4">
                   {file ? (
                     <>
-                      <div className="w-12 h-12 bg-blue-500/20 backdrop-blur-sm rounded-xl flex items-center justify-center border border-blue-400/30">
-                        <File className="w-6 h-6 text-blue-400" />
+                      <div className={`w-16 h-16 backdrop-blur-sm rounded-2xl flex items-center justify-center border transition-all duration-300 ${
+                        isDark 
+                          ? 'bg-cyan-500/20 border-cyan-400/30' 
+                          : 'bg-cyan-100 border-cyan-300'
+                      }`}>
+                        <File className={`w-8 h-8 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
                       </div>
                       <div className="text-center">
-                        <p className="text-white font-medium">{file.name}</p>
-                        <p className="text-slate-300 text-sm mt-1">{formatFileSize(file.size)}</p>
+                        <p className={`font-semibold text-lg transition-colors duration-300 ${
+                          isDark ? 'text-white' : 'text-cyan-900'
+                        }`}>{file.name}</p>
+                        <p className={`text-sm mt-1 transition-colors duration-300 ${
+                          isDark ? 'text-cyan-300' : 'text-cyan-600'
+                        }`}>{formatFileSize(file.size)}</p>
                       </div>
                     </>
                   ) : (
                     <>
-                      <div className="w-12 h-12 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/20">
-                        <Upload className="w-6 h-6 text-slate-300" />
+                      <div className={`w-16 h-16 backdrop-blur-sm rounded-2xl flex items-center justify-center border transition-all duration-300 ${
+                        isDark 
+                          ? 'bg-white/10 border-white/20' 
+                          : 'bg-cyan-100 border-cyan-300'
+                      }`}>
+                        <Upload className={`w-8 h-8 ${isDark ? 'text-cyan-300' : 'text-cyan-600'}`} />
                       </div>
                       <div className="text-center">
-                        <p className="text-white font-medium">Choose a file</p>
-                        <p className="text-slate-300 text-sm mt-1">or drag and drop here</p>
+                        <p className={`font-semibold text-lg transition-colors duration-300 ${
+                          isDark ? 'text-white' : 'text-cyan-900'
+                        }`}>Choose a file</p>
+                        <p className={`text-sm mt-1 transition-colors duration-300 ${
+                          isDark ? 'text-cyan-300' : 'text-cyan-600'
+                        }`}>or drag and drop here</p>
                       </div>
                     </>
                   )}
                 </div>
+                <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${
+                  isDark 
+                    ? 'bg-linear-to-br from-cyan-500/5 to-blue-500/5' 
+                    : 'bg-linear-to-br from-cyan-100/50 to-blue-100/50'
+                }`} />
               </label>
             </div>
 
-            <div className="flex items-center justify-between p-4 bg-white/5 backdrop-blur-xl rounded-xl border border-white/10">
+            <div className={`flex items-center justify-between p-4 backdrop-blur-xl rounded-xl border transition-all duration-300 ${
+              isDark 
+                ? 'bg-white/5 border-white/10' 
+                : 'bg-white/80 border-cyan-200'
+            }`}>
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-purple-500/20 backdrop-blur-sm rounded-lg flex items-center justify-center border border-purple-400/30">
-                  <Zap className="w-5 h-5 text-purple-400" />
+                <div className={`w-10 h-10 backdrop-blur-sm rounded-lg flex items-center justify-center border transition-all duration-300 ${
+                  isDark 
+                    ? 'bg-cyan-500/20 border-cyan-400/30' 
+                    : 'bg-cyan-100 border-cyan-300'
+                }`}>
+                  <Zap className={`w-5 h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
                 </div>
                 <div>
-                  <p className="text-white font-medium text-sm">Parallel Upload</p>
-                  <p className="text-slate-300 text-xs">Faster transfers</p>
+                  <p className={`font-medium text-sm transition-colors duration-300 ${
+                    isDark ? 'text-white' : 'text-cyan-900'
+                  }`}>Parallel Upload</p>
+                  <p className={`text-xs transition-colors duration-300 ${
+                    isDark ? 'text-cyan-300' : 'text-cyan-600'
+                  }`}>Workers: {currentProfile.workers}</p>
                 </div>
               </div>
-              <button
-                onClick={() => setParallel(!parallel)}
-                className={`relative w-12 h-6 rounded-full transition-colors duration-300 backdrop-blur-sm ${parallel ? "bg-blue-500/80 border border-blue-400/50" : "bg-white/10 border border-white/20"
-                  }`}
+              <button 
+                onClick={() => setParallel(!parallel)} 
+                className={`relative w-12 h-6 rounded-full transition-all duration-300 backdrop-blur-sm border ${
+                  parallel 
+                    ? isDark
+                      ? "bg-cyan-500/80 border-cyan-400/50" 
+                      : "bg-cyan-500 border-cyan-600"
+                    : isDark
+                      ? "bg-white/10 border-white/20" 
+                      : "bg-gray-200 border-gray-300"
+                }`}
               >
-                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-lg transition-transform duration-300 ${parallel ? "transform translate-x-6" : ""
-                  }`} />
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-lg transition-transform duration-300 ${
+                  parallel ? "transform translate-x-6" : ""
+                }`} />
               </button>
             </div>
 
-            <button
-              disabled={!file || isUploading}
-              onClick={startUpload}
-              className="w-full bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-slate-700 disabled:to-slate-700 disabled:cursor-not-allowed text-white font-semibold py-4 rounded-xl backdrop-blur-xl border border-white/10 shadow-lg transition-all duration-300"
+            <button 
+              disabled={!file || isUploading} 
+              onClick={startUpload} 
+              className={`w-full font-semibold py-4 rounded-xl backdrop-blur-xl border shadow-lg transition-all duration-300 ${
+                !file || isUploading
+                  ? isDark
+                    ? "bg-slate-700 border-slate-600 text-slate-400 cursor-not-allowed"
+                    : "bg-gray-200 border-gray-300 text-gray-400 cursor-not-allowed"
+                  : isDark
+                    ? "bg-linear-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 border-white/10 text-white"
+                    : "bg-linear-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 border-cyan-600 text-white"
+              }`}
             >
               {isUploading ? <span>Uploading... {progress}%</span> : <span>Start Upload</span>}
             </button>
@@ -356,16 +399,26 @@ export default function FileUpload() {
             {isUploading && totalChunks > 0 && (
               <div className="space-y-4">
                 <ChunkVisualizer progress={progress} totalChunks={totalChunks} uploadedChunks={uploadedChunks} />
-
+                
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-300">Progress</span>
-                    <span className="text-blue-400 font-semibold">{progress}%</span>
+                    <span className={`transition-colors duration-300 ${
+                      isDark ? 'text-cyan-300' : 'text-cyan-700'
+                    }`}>Progress</span>
+                    <span className={`font-semibold transition-colors duration-300 ${
+                      isDark ? 'text-cyan-400' : 'text-cyan-600'
+                    }`}>{progress}%</span>
                   </div>
-                  <div className="h-2 bg-white/10 backdrop-blur-sm rounded-full overflow-hidden border border-white/10">
-                    <div
-                      className="h-full bg-linear-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-300"
-                      style={{ width: `${progress}%` }}
+                  <div className={`h-2 rounded-full overflow-hidden backdrop-blur-sm transition-all duration-300 ${
+                    isDark ? 'bg-white/10' : 'bg-cyan-100'
+                  }`}>
+                    <div 
+                      className={`h-full transition-all duration-300 ${
+                        isDark 
+                          ? 'bg-linear-to-r from-cyan-500 to-blue-500' 
+                          : 'bg-linear-to-r from-cyan-400 to-blue-400'
+                      }`}
+                      style={{ width: `${progress}%` }} 
                     />
                   </div>
                 </div>
@@ -373,23 +426,45 @@ export default function FileUpload() {
             )}
 
             {downloadLink && (
-              <div className="bg-linear-to-br from-green-500/20 to-emerald-500/20 backdrop-blur-xl border border-green-400/30 rounded-2xl p-6 space-y-4">
+              <div className={`backdrop-blur-xl border rounded-2xl p-6 space-y-4 transition-all duration-300 ${
+                isDark 
+                  ? 'bg-linear-to-br from-green-500/20 to-emerald-500/20 border-green-500/30' 
+                  : 'bg-linear-to-br from-green-100 to-emerald-100 border-green-300'
+              }`}>
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-green-500/30 backdrop-blur-sm rounded-xl flex items-center justify-center border border-green-400/40">
-                    <Check className="w-6 h-6 text-green-400" />
+                  <div className={`w-10 h-10 backdrop-blur-sm rounded-xl flex items-center justify-center border transition-all duration-300 ${
+                    isDark 
+                      ? 'bg-green-500/30 border-green-400/40' 
+                      : 'bg-green-200 border-green-400'
+                  }`}>
+                    <Check className={`w-6 h-6 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
                   </div>
                   <div>
-                    <p className="text-green-400 font-semibold">Upload Complete!</p>
-                    <p className="text-green-300/70 text-sm">Finished in {uploadTime}</p>
+                    <p className={`font-semibold transition-colors duration-300 ${
+                      isDark ? 'text-green-400' : 'text-green-700'
+                    }`}>Upload Complete!</p>
+                    <p className={`text-sm transition-colors duration-300 ${
+                      isDark ? 'text-green-300/70' : 'text-green-600'
+                    }`}>Finished in {uploadTime}</p>
                   </div>
                 </div>
-                <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                  <p className="text-slate-300 text-xs mb-2 uppercase tracking-wider">Download Link</p>
-                  <a
-                    href={downloadLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-blue-400 hover:text-blue-300 break-all text-sm underline"
+                <div className={`backdrop-blur-sm rounded-xl p-4 border transition-all duration-300 ${
+                  isDark 
+                    ? 'bg-slate-900/50 border-white/10' 
+                    : 'bg-white/60 border-green-300'
+                }`}>
+                  <p className={`text-xs mb-2 uppercase tracking-wider transition-colors duration-300 ${
+                    isDark ? 'text-green-300/70' : 'text-green-600'
+                  }`}>Download Link</p>
+                  <a 
+                    href={downloadLink} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className={`break-all text-sm underline transition-colors duration-300 ${
+                      isDark 
+                        ? 'text-cyan-400 hover:text-cyan-300' 
+                        : 'text-cyan-600 hover:text-cyan-700'
+                    }`}
                   >
                     {downloadLink}
                   </a>
@@ -400,7 +475,11 @@ export default function FileUpload() {
         </div>
 
         <div className="text-center mt-6">
-          <p className="text-slate-500 text-sm">Powered by AetherLink • Secure File Transfer</p>
+          <p className={`text-sm transition-colors duration-300 ${
+            isDark ? 'text-slate-500' : 'text-cyan-600'
+          }`}>
+            Powered by AetherLink • Secure File Transfer
+          </p>
         </div>
       </div>
     </div>

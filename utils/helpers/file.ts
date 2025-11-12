@@ -1,3 +1,4 @@
+import { NetworkProfile } from '@/types/NetworkProfile';
 import axios from 'axios';
 const API_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:8080";
 
@@ -8,19 +9,36 @@ export const bufferToHex = (buf: ArrayBuffer) => {
         .join("");
 };
 
-export async function uploadChunk(uploadID: string, idx: number, chunk: Blob, priority = "normal") {
+export const uploadChunk = async (
+    uploadID: string,
+    idx: number,
+    blob: Blob,
+    priority: string,
+    networkProfile: NetworkProfile
+): Promise<void> => {
+    if (networkProfile.delay > 0) {
+        await new Promise(r => setTimeout(r, networkProfile.delay));
+    }
 
-    const res = await axios.put(`${API_URL}/upload/${uploadID}/${idx}`, chunk, {
-        headers: { "Content-Type": chunk.type || "application/octet-stream", "X-Priority": priority },
+    if (Math.random() * 100 < networkProfile.failureRate) {
+        console.log(`🔴 Simulated network failure for chunk ${idx}`);
+        throw new Error('Simulated network failure');
+    }
+
+    const formData = new FormData();
+    formData.append("chunk", blob);
+    formData.append("chunk_index", idx.toString());
+    formData.append("priority", priority);
+
+    const res = await axios.put(`${API_URL}/upload/${uploadID}/${idx}`, blob, {
+        headers: { "Content-Type": blob.type || "application/octet-stream", "X-Priority": priority },
     });
 
     if (res.status !== 200) {
         const text = await res.data.text().catch(() => "");
         throw new Error(`chunk ${idx} failed: ${res.status} ${text}`);
     }
-
-    return true;
-}
+};
 
 export const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";

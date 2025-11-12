@@ -9,7 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ffmpeg/core": "^0.12.10",
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
     "axios": "^1.13.2",
+    "browser-image-compression": "^2.0.2",
     "lucide-react": "^0.552.0",
     "next": "16.0.1",
     "react": "19.2.0",

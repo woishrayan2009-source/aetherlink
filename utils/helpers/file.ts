@@ -14,8 +14,11 @@ export const uploadChunk = async (
     idx: number,
     blob: Blob,
     priority: string,
-    networkProfile: NetworkProfile
+    networkProfile: NetworkProfile,
+    endpoint?: string
 ): Promise<void> => {
+    const uploadEndpoint = endpoint || API_URL;
+    
     if (networkProfile.delay > 0) {
         await new Promise(r => setTimeout(r, networkProfile.delay));
     }
@@ -30,7 +33,7 @@ export const uploadChunk = async (
     formData.append("chunk_index", idx.toString());
     formData.append("priority", priority);
 
-    const res = await axios.put(`${API_URL}/upload/${uploadID}/${idx}`, blob, {
+    const res = await axios.put(`${uploadEndpoint}/upload/${uploadID}/${idx}`, blob, {
         headers: { "Content-Type": blob.type || "application/octet-stream", "X-Priority": priority },
     });
 

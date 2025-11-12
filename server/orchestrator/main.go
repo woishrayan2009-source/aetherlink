@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
@@ -26,4 +27,8 @@ func main() {
 
 	log.Printf("Server listening on %s\n", config.ServerPort)
 	log.Fatal(app.Listen(config.ServerPort))
+}
+
+func init() {
+	fmt.Println("Initializing orchestrator...")
 }

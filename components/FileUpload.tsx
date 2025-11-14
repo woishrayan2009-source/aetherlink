@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { bufferToHex, detectConnectionSpeed, uploadChunk } from "@/utils/helpers/file";
+import { bufferToHex, detectConnectionSpeed, uploadChunk, formatBytes } from "@/utils/helpers/file";
 import { compressFile, isCompressible as checkCompressible } from "@/utils/helpers/compression";
 import { NETWORK_PROFILES } from "@/types/NetworkProfile";
 import { Priority, UploadMetrics, CostComparison, COST_PER_MB, WASTED_MULTIPLIER } from "@/types/UploadMetrics";
@@ -44,7 +44,6 @@ export default function FileUpload() {
     wastedBytes: 0
   });
   
-  // FEATURE 11: Compression state
   const [compressionSettings, setCompressionSettings] = useState<CompressionSettings>({
     enabled: false,
     quality: 70,
@@ -55,7 +54,6 @@ export default function FileUpload() {
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
   
-  // FEATURE 12: Multi-destination state
   const [destinations, setDestinations] = useState<Destination[]>([
     {
       id: '1',
@@ -167,7 +165,6 @@ export default function FileUpload() {
 
     localStorage.setItem('upload-priority', priority);
 
-    // FEATURE 11: Compress file if enabled
     let fileToUpload = file;
     if (compressionSettings.enabled && checkCompressible(file)) {
       try {
@@ -202,9 +199,7 @@ export default function FileUpload() {
     const startTime = performance.now();
     setMetrics(prev => ({ ...prev, startTime, totalBytes: fileToUpload.size }));
     
-    // FEATURE 12: Upload to multiple destinations
     try {
-      // Update all destinations to uploading status
       setDestinations(prev => prev.map(d => 
         d.enabled ? { ...d, status: 'uploading' as const, progress: 0 } : d
       ));
@@ -390,7 +385,6 @@ export default function FileUpload() {
       <ThemeToggle isDark={isDark} onToggle={() => setIsDark(!isDark)} />
 
       <div className="h-full flex flex-col lg:flex-row gap-6 p-4 lg:p-6 max-w-7xl mx-auto overflow-hidden">
-        {/* Main Upload Box */}
         <div className="flex-1 lg:grow-2 flex flex-col min-h-0">
           <div className="h-full overflow-y-auto custom-scrollbar">
             <div className={`backdrop-blur-2xl rounded-3xl shadow-2xl border overflow-hidden transition-all duration-300 ${isDark
@@ -436,7 +430,6 @@ export default function FileUpload() {
                   isUploading={isUploading}
                 />
 
-                {/* FEATURE 12: Multi-Destination Upload */}
                 <MultiDestination
                   destinations={destinations}
                   onDestinationsChange={setDestinations}
@@ -481,7 +474,6 @@ export default function FileUpload() {
                       isDark={isDark}
                     />
                     
-                    {/* FEATURE 2: Cancel Upload Button */}
                     <button
                       onClick={handleCancelClick}
                       className={`w-full font-semibold py-4 rounded-xl backdrop-blur-xl border shadow-lg transition-all duration-300 ${
@@ -560,7 +552,6 @@ export default function FileUpload() {
         </div>
       </div>
 
-      {/* FEATURE 2: Cancel Confirmation Dialog */}
       {showCancelDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className={`max-w-md w-full rounded-2xl border shadow-2xl transition-all duration-300 ${
@@ -627,13 +618,4 @@ export default function FileUpload() {
       )}
     </div>
   );
-}
-
-// Helper function for formatting bytes
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 }

@@ -9,6 +9,15 @@ export const bufferToHex = (buf: ArrayBuffer) => {
         .join("");
 };
 
+export function formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+}
+
+
 export const uploadChunk = async (
     uploadID: string,
     idx: number,
@@ -18,7 +27,7 @@ export const uploadChunk = async (
     endpoint?: string
 ): Promise<void> => {
     const uploadEndpoint = endpoint || API_URL;
-    
+
     if (networkProfile.delay > 0) {
         await new Promise(r => setTimeout(r, networkProfile.delay));
     }

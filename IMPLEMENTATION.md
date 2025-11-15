@@ -28,7 +28,7 @@ See `ADAPTIVE_NETWORK_MONITORING.md` for detailed documentation.
 
 - Reads the input file.
 - Compresses it to optimize bandwidth usage.
-- Generates a SHA-256 hash of the compressed file for end-to-end integrity.
+- Generates an xxHash hash of the compressed file for end-to-end integrity.
 
 ### 2. Dynamic Chunking Engine
 
@@ -41,12 +41,12 @@ Each chunk includes:
 
 - Chunk index
 - Total chunks
-- SHA-256 hash
+- xxHash hash
 - File metadata
 
 ### 3. Secure Chunk Transmission
 
-- Each chunk is verified on the server using its SHA-256 hash.
+- Each chunk is verified on the server using its xxHash hash.
 - Corrupted/mismatched chunks are re-requested.
 - No need to retransmit the whole file.
 
@@ -132,7 +132,7 @@ Server is used only for signaling (connection setup).
 
 - Built-in DTLS
 - Additional AES-256 encryption
-- Per-chunk SHA-256 validation
+- Per-chunk xxHash validation
 
 ### 3. Dynamic Chunking Still Applies
 

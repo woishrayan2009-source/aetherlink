@@ -228,7 +228,7 @@ function IdleState({ isDark }: any) {
           <div className="flex items-center space-x-2">
             <div className={`w-2 h-2 rounded-full ${isDark ? 'bg-cyan-500' : 'bg-cyan-600'}`} />
             <span className={isDark ? 'text-cyan-300' : 'text-cyan-700'}>
-              SHA-256 integrity checks
+              xxHash integrity checks
             </span>
           </div>
           <div className="flex items-center space-x-2">

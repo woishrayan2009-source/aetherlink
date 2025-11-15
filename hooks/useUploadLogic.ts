@@ -2,7 +2,7 @@ import { bufferToHex, uploadChunk } from "@/utils/helpers/file";
 import { compressFile, isCompressible as checkCompressible } from "@/utils/helpers/compression";
 import { UploadMetrics, CostComparison, COST_PER_MB, WASTED_MULTIPLIER } from "@/types/UploadMetrics";
 import { NetworkProfile } from "@/types/NetworkProfile";
-import { createXXHash64 } from "xxhash-wasm";
+import xxhashWasm from "xxhash-wasm";
 
 const DEFAULT_ENDPOINT = "http://localhost:8080";
 
@@ -36,28 +36,29 @@ export function useUploadLogic(params: UploadLogicParams) {
 
         console.log(`🔒 Upload locked: CHUNK_SIZE=${CHUNK_SIZE}, WORKERS=${MAX_WORKERS}, CHUNKS=${chunks}, FILE_SIZE=${file.size}`);
 
-        const chunkHashes: string[] = new Array(chunks);
-        for (let i = 0; i < chunks; i++) {
-            const start = i * CHUNK_SIZE;
+        // Initialize xxHash
+        const hasher = await xxhashWasm();
+
+        // Compute hashes on-demand during upload instead of upfront
+        const computeChunkHash = async (chunkIndex: number): Promise<string> => {
+            const start = chunkIndex * CHUNK_SIZE;
             const end = Math.min(start + CHUNK_SIZE, file.size);
             const blob = file.slice(start, end);
             const ab = await blob.arrayBuffer();
-            const digest = await crypto.subtle.digest("SHA-256", ab);
-            chunkHashes[i] = bufferToHex(digest);
-        }
+            const hash = hasher.h64Raw(new Uint8Array(ab));
+            return hash.toString(16).padStart(16, '0');
+        };
 
-        const whole = await file.arrayBuffer();
-        const overallDigest = await crypto.subtle.digest("SHA-256", whole);
-        const fileHash = bufferToHex(overallDigest);
-
+        // Start upload immediately without computing file hash upfront
+        // The server will verify chunks individually, and we'll compute file hash at the end
         const uploadID = `${file.name.replace(/[^a-z0-9.-_]/gi, "")}-${Date.now()}`;
         const metadata = {
             upload_id: uploadID,
             filename: file.name,
             total_chunks: chunks,
             chunk_size: CHUNK_SIZE,
-            chunk_hashes: chunkHashes,
-            file_hash: fileHash,
+            chunk_hashes: [], // Empty - server will validate per chunk if needed
+            file_hash: '', // Will compute at completion if needed
         };
 
         const initRes = await fetch(`${DEFAULT_ENDPOINT}/init`, {

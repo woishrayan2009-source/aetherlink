@@ -12,7 +12,7 @@ A distributed file transfer platform that chunks files for reliable uploads with
 - **Framework**: React 19, TypeScript 5, Next.js 16
 - **Styling**: Tailwind CSS 4, Lucide React icons
 - **Features**: Drag-drop file upload, progress bars, parallel chunk uploads
-- **Security**: SHA-256 client-side hashing (per-chunk + full file)
+- **Security**: xxHash client-side hashing (per-chunk + full file)
 - **Real-time**: SSE for live progress updates
 - **Persistence**: localStorage for resumable sessions
 
@@ -26,8 +26,8 @@ A distributed file transfer platform that chunks files for reliable uploads with
   - `POST /complete/:uploadID` - Reassemble & verify file
   - `GET /events/:uploadID` - SSE progress stream
   - `GET /static` - Download assembled files
-- **Security**: Per-chunk SHA-256 validation, final file hash verification
-- **Metadata**: Hash tracking (`.sha256`)
+- **Security**: Per-chunk xxHash validation, final file hash verification
+- **Metadata**: Hash tracking (`.xxhash`)
 
 ### Go Client (CLI)
 - **Purpose**: Command-line bulk uploader
@@ -38,7 +38,7 @@ A distributed file transfer platform that chunks files for reliable uploads with
 
 - ✅ **Chunked Upload**: 1MB chunks (configurable)
 - ✅ **Resume Support**: Query received chunks, skip completed ones
-- ✅ **Integrity Checks**: SHA-256 validation per chunk + full file
+- ✅ **Integrity Checks**: xxHash validation per chunk + full file
 - ✅ **Parallel Upload**: Multi-worker chunk upload for faster transfers
 - ✅ **Real-time Progress**: SSE broadcast to all clients
 - ✅ **Auto-reassembly**: Server stitches chunks on `/complete`

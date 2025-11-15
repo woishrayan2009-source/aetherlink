@@ -17,7 +17,7 @@ func SetupRoutes(app *fiber.App) {
 
 	app.Delete("/cleanup/:uploadID", controllers.CleanupHandler)
 
-	app.Get("/files", controllers.FilesHandler)
+	// app.Get("/files", controllers.FilesHandler)
 
 	app.Get("/events/:uploadID", controllers.SSEHandler)
 

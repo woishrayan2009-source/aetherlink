@@ -8,15 +8,14 @@ export default function LandingPage() {
   const [isDark, setIsDark] = useState(true);
 
   return (
-    <div className={`min-h-screen ${isDark ? 'bg-gradient-to-br from-slate-950 via-cyan-950 to-slate-950' : 'bg-gradient-to-br from-sky-50 via-cyan-50 to-blue-50'} transition-colors duration-300`}>
+    <div className={`min-h-screen ${isDark ? 'bg-linear-to-br from-slate-950 via-cyan-950 to-slate-950' : 'bg-linear-to-br from-sky-50 via-cyan-50 to-blue-50'} transition-colors duration-300`}>
       {/* Theme Toggle */}
       <button
         onClick={() => setIsDark(!isDark)}
-        className={`fixed top-6 right-6 p-3 rounded-full backdrop-blur-xl transition-all duration-300 z-50 ${
-          isDark
+        className={`fixed top-6 right-6 p-3 rounded-full backdrop-blur-xl transition-all duration-300 z-50 ${isDark
             ? 'bg-white/10 hover:bg-white/20 text-yellow-300'
             : 'bg-slate-900/10 hover:bg-slate-900/20 text-slate-900'
-        }`}
+          }`}
       >
         {isDark ? (
           <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
@@ -33,9 +32,8 @@ export default function LandingPage() {
         <div className="max-w-6xl w-full">
           {/* Header */}
           <div className="text-center mb-16 animate-in fade-in slide-in-from-top-4 duration-700">
-            <div className={`inline-flex items-center gap-3 mb-6 px-6 py-3 rounded-full backdrop-blur-xl ${
-              isDark ? 'bg-cyan-500/10 border border-cyan-500/20' : 'bg-cyan-500/20 border border-cyan-500/30'
-            }`}>
+            <div className={`inline-flex items-center gap-3 mb-6 px-6 py-3 rounded-full backdrop-blur-xl ${isDark ? 'bg-cyan-500/10 border border-cyan-500/20' : 'bg-cyan-500/20 border border-cyan-500/30'
+              }`}>
               <svg className={`w-8 h-8 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
@@ -56,24 +54,21 @@ export default function LandingPage() {
             {/* Sender Card */}
             <div
               onClick={() => router.push('/sender')}
-              className={`group relative overflow-hidden rounded-3xl backdrop-blur-2xl border transition-all duration-500 cursor-pointer transform hover:scale-105 hover:-translate-y-2 animate-in fade-in slide-in-from-left duration-700 ${
-                isDark
+              className={`group relative overflow-hidden rounded-3xl backdrop-blur-2xl border transition-all duration-500 cursor-pointer transform hover:scale-105 hover:-translate-y-2 animate-in fade-in slide-in-from-left duration-700 ${isDark
                   ? 'bg-slate-900/40 border-white/10 hover:bg-slate-900/60 hover:border-cyan-500/50'
                   : 'bg-white/60 border-cyan-200 hover:bg-white/80 hover:border-cyan-400'
-              }`}
+                }`}
             >
-              {/* Gradient Overlay */}
-              <div className={`absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${
-                isDark
-                  ? 'bg-gradient-to-br from-cyan-500/10 via-blue-500/10 to-cyan-500/10'
-                  : 'bg-gradient-to-br from-cyan-200/30 via-blue-200/30 to-cyan-200/30'
-              }`} />
+              {/* linear Overlay */}
+              <div className={`absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${isDark
+                  ? 'bg-linear-to-br from-cyan-500/10 via-blue-500/10 to-cyan-500/10'
+                  : 'bg-linear-to-br from-cyan-200/30 via-blue-200/30 to-cyan-200/30'
+                }`} />
 
               <div className="relative p-8">
                 {/* Icon */}
-                <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-6 transition-all duration-500 group-hover:scale-110 ${
-                  isDark ? 'bg-cyan-500/20 group-hover:bg-cyan-500/30' : 'bg-cyan-100 group-hover:bg-cyan-200'
-                }`}>
+                <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-6 transition-all duration-500 group-hover:scale-110 ${isDark ? 'bg-cyan-500/20 group-hover:bg-cyan-500/30' : 'bg-cyan-100 group-hover:bg-cyan-200'
+                  }`}>
                   <svg className={`w-10 h-10 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
@@ -96,7 +91,7 @@ export default function LandingPage() {
                     'Compression support'
                   ].map((feature, idx) => (
                     <li key={idx} className={`flex items-start gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      <svg className={`w-5 h-5 mt-0.5 flex-shrink-0 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} fill="currentColor" viewBox="0 0 20 20">
+                      <svg className={`w-5 h-5 mt-0.5 shrink-0 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
                       {feature}
@@ -117,24 +112,21 @@ export default function LandingPage() {
             {/* Receiver Card */}
             <div
               onClick={() => router.push('/receiver')}
-              className={`group relative overflow-hidden rounded-3xl backdrop-blur-2xl border transition-all duration-500 cursor-pointer transform hover:scale-105 hover:-translate-y-2 animate-in fade-in slide-in-from-right duration-700 ${
-                isDark
+              className={`group relative overflow-hidden rounded-3xl backdrop-blur-2xl border transition-all duration-500 cursor-pointer transform hover:scale-105 hover:-translate-y-2 animate-in fade-in slide-in-from-right duration-700 ${isDark
                   ? 'bg-slate-900/40 border-white/10 hover:bg-slate-900/60 hover:border-purple-500/50'
                   : 'bg-white/60 border-cyan-200 hover:bg-white/80 hover:border-purple-400'
-              }`}
+                }`}
             >
-              {/* Gradient Overlay */}
-              <div className={`absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${
-                isDark
-                  ? 'bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-purple-500/10'
-                  : 'bg-gradient-to-br from-purple-200/30 via-pink-200/30 to-purple-200/30'
-              }`} />
+              {/* linear Overlay */}
+              <div className={`absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${isDark
+                  ? 'bg-linear-to-br from-purple-500/10 via-pink-500/10 to-purple-500/10'
+                  : 'bg-linear-to-br from-purple-200/30 via-pink-200/30 to-purple-200/30'
+                }`} />
 
               <div className="relative p-8">
                 {/* Icon */}
-                <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-6 transition-all duration-500 group-hover:scale-110 ${
-                  isDark ? 'bg-purple-500/20 group-hover:bg-purple-500/30' : 'bg-purple-100 group-hover:bg-purple-200'
-                }`}>
+                <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-6 transition-all duration-500 group-hover:scale-110 ${isDark ? 'bg-purple-500/20 group-hover:bg-purple-500/30' : 'bg-purple-100 group-hover:bg-purple-200'
+                  }`}>
                   <svg className={`w-10 h-10 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
                   </svg>
@@ -157,7 +149,7 @@ export default function LandingPage() {
                     'Secure file access'
                   ].map((feature, idx) => (
                     <li key={idx} className={`flex items-start gap-2 text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      <svg className={`w-5 h-5 mt-0.5 flex-shrink-0 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} fill="currentColor" viewBox="0 0 20 20">
+                      <svg className={`w-5 h-5 mt-0.5 shrink-0 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
                       {feature}

@@ -11,6 +11,7 @@ interface ActivityPanelProps {
   totalChunks: number;
   currentProfile: NetworkProfile;
   isDark: boolean;
+  activeWorkers: number;
 }
 
 export function ActivityPanel({
@@ -21,7 +22,8 @@ export function ActivityPanel({
   uploadedChunks,
   totalChunks,
   currentProfile,
-  isDark
+  isDark,
+  activeWorkers
 }: ActivityPanelProps) {
   return (
     <div className={`backdrop-blur-2xl rounded-3xl shadow-2xl border overflow-hidden transition-all duration-300 flex flex-col ${
@@ -45,6 +47,7 @@ export function ActivityPanel({
             totalChunks={totalChunks}
             currentProfile={currentProfile}
             isDark={isDark}
+            activeWorkers={activeWorkers}
           />
         ) : downloadLink ? (
           <SuccessState
@@ -69,7 +72,7 @@ export function ActivityPanel({
   );
 }
 
-function UploadingState({ progress, uploadedChunks, totalChunks, currentProfile, isDark }: any) {
+function UploadingState({ progress, uploadedChunks, totalChunks, currentProfile, isDark, activeWorkers }: any) {
   return (
     <div className="space-y-6">
       {/* Pulsing Upload Icon */}
@@ -140,11 +143,26 @@ function UploadingState({ progress, uploadedChunks, totalChunks, currentProfile,
             </div>
             <div className="flex justify-between">
               <span className={`text-sm ${isDark ? 'text-cyan-300' : 'text-cyan-700'}`}>
-                Workers
+                Max Workers
               </span>
               <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-cyan-900'}`}>
                 {currentProfile.workers}
               </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className={`text-sm ${isDark ? 'text-cyan-300' : 'text-cyan-700'}`}>
+                Active Workers
+              </span>
+              <div className="flex items-center space-x-2">
+                <span className={`text-sm font-bold ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                  {activeWorkers}
+                </span>
+                {activeWorkers > 0 && (
+                  <div className={`w-2 h-2 rounded-full animate-pulse ${
+                    isDark ? 'bg-green-400' : 'bg-green-500'
+                  }`} />
+                )}
+              </div>
             </div>
             <div className="flex justify-between">
               <span className={`text-sm ${isDark ? 'text-cyan-300' : 'text-cyan-700'}`}>

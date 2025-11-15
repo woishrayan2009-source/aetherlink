@@ -50,7 +50,7 @@ export function useAdaptiveNetworkMonitor(
   const [state, setState] = useState<AdaptiveNetworkState>({
     metrics: DEFAULT_METRICS,
     chunkSize: 10 * 1024 * 1024,
-    workers: 4,
+    workers: 40,
     networkType: 'unknown',
     quality: 'good',
     isMonitoring: false,
@@ -95,11 +95,14 @@ export function useAdaptiveNetworkMonitor(
         break;
     }
 
+    // Cap workers at 40 for excellent quality
+    const cappedWorkers = Math.min(workers, 40);
+
     return {
       name: 'adaptive',
       label: `Adaptive (${networkType})`,
       chunkSize,
-      workers,
+      workers: cappedWorkers,
       delay,
       failureRate,
       color,

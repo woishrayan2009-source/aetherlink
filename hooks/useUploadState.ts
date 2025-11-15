@@ -13,11 +13,11 @@ export function useUploadState() {
     const [totalChunks, setTotalChunks] = useState(0);
     const [uploadedChunks, setUploadedChunks] = useState(0);
     const [selectedProfile, setSelectedProfile] = useState<string>("normal");
-    const [isDark, setIsDark] = useState(true);
     const [costComparison, setCostComparison] = useState<CostComparison | null>(null);
     const [isCompressing, setIsCompressing] = useState(false);
     const [compressionProgress, setCompressionProgress] = useState(0);
     const [shareId, setShareId] = useState("");
+    const [activeWorkers, setActiveWorkers] = useState(0);
 
     const [metrics, setMetrics] = useState<UploadMetrics>({
         successfulChunks: 0,
@@ -47,12 +47,12 @@ export function useUploadState() {
         totalChunks, setTotalChunks,
         uploadedChunks, setUploadedChunks,
         selectedProfile, setSelectedProfile,
-        isDark, setIsDark,
         costComparison, setCostComparison,
         metrics, setMetrics,
         compressionSettings, setCompressionSettings,
         isCompressing, setIsCompressing,
         compressionProgress, setCompressionProgress,
-        shareId, setShareId
+        shareId, setShareId,
+        activeWorkers, setActiveWorkers
     };
 }

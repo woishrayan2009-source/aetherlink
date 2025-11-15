@@ -43,26 +43,26 @@ function calculateOptimalChunkSize(speed: NetworkSpeed): AdaptiveChunkConfig {
     } else if (downloadSpeed < 10) {
         return {
             chunkSize: 2 * 1024 * 1024,
-            workers: 4,
+            workers: 15,
             batchSize: 6
         };
     } else if (downloadSpeed < 25) {
         return {
             chunkSize: 5 * 1024 * 1024,
-            workers: 6,
+            workers: 20,
             batchSize: 8
         };
     } else if (downloadSpeed < 50) {
         return {
             chunkSize: 8 * 1024 * 1024,
-            workers: 8,
+            workers: 30,
             batchSize: 10
         };
     } else {
         // High-speed connection (50+ Mbps)
         return {
             chunkSize: 10 * 1024 * 1024,
-            workers: 10,
+            workers: 40,
             batchSize: 12
         };
     }
@@ -124,7 +124,7 @@ export function useNetworkSpeedMonitor(intervalMs: number = 1000) {
 
     const [chunkConfig, setChunkConfig] = useState<AdaptiveChunkConfig>({
         chunkSize: 10 * 1024 * 1024,
-        workers: 4,
+        workers: 40,
         batchSize: 6
     });
 

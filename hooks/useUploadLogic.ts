@@ -19,6 +19,7 @@ interface UploadLogicParams {
     setDownloadLink: (val: string) => void;
     setCostComparison: (val: CostComparison | null) => void;
     setShareId: (val: string) => void;
+    setActiveWorkers: (val: number) => void;
 }
 
 export function useUploadLogic(params: UploadLogicParams) {
@@ -144,8 +145,10 @@ export function useUploadLogic(params: UploadLogicParams) {
         // Always use parallel uploads
         for (let i = 0; i < chunksToUpload.length; i += MAX_WORKERS) {
             const batch = chunksToUpload.slice(i, i + MAX_WORKERS);
+            params.setActiveWorkers(batch.length);
             await Promise.all(batch.map((idx) => uploadWithRetry(idx)));
         }
+        params.setActiveWorkers(0);
 
         const completeRes = await fetch(`${DEFAULT_ENDPOINT}/complete/${uploadID}`, { method: "POST" });
         if (!completeRes.ok) throw new Error(`complete failed: ${completeRes.status}`);
@@ -182,6 +185,7 @@ export function useUploadLogic(params: UploadLogicParams) {
         params.setProgress(0);
         params.setUploadTime("");
         params.setUploadedChunks(0);
+        params.setActiveWorkers(0);
 
         let fileToUpload = file;
         if (compressionSettings.enabled && checkCompressible(file)) {

@@ -50,7 +50,6 @@ export default function FileUpload() {
     if (!state.file) return;
     await startUpload(
       state.file,
-      state.priority,
       state.compressionSettings,
       currentProfile
     );
@@ -111,14 +110,10 @@ export default function FileUpload() {
                     <UploadControls
                       selectedProfile={state.selectedProfile}
                       onProfileChange={state.setSelectedProfile}
-                      priority={state.priority}
-                      onPriorityChange={state.setPriority}
                       file={state.file}
                       onFileChange={handleFileChange}
                       compressionSettings={state.compressionSettings}
                       onCompressionChange={state.setCompressionSettings}
-                      parallel={state.parallel}
-                      onParallelToggle={() => state.setParallel(!state.parallel)}
                       workers={currentProfile.workers}
                       isUploading={state.isUploading}
                       isDark={state.isDark}
@@ -186,7 +181,6 @@ export default function FileUpload() {
               progress={state.progress}
               uploadedChunks={state.uploadedChunks}
               totalChunks={state.totalChunks}
-              parallel={state.parallel}
               currentProfile={currentProfile}
               isDark={state.isDark}
             />

@@ -1,5 +1,3 @@
-import { Priority } from "@/types/UploadMetrics";
-
 interface FileChangeHandlers {
   setFile: (file: File | null) => void;
   setProgress: (progress: number) => void;
@@ -8,7 +6,6 @@ interface FileChangeHandlers {
   setUploadedChunks: (chunks: number) => void;
   setMetrics: React.Dispatch<React.SetStateAction<any>>;
   setCostComparison: (comparison: null) => void;
-  setPriority: (priority: Priority) => void;
 }
 
 export function handleFileChange(
@@ -29,9 +26,4 @@ export function handleFileChange(
     wastedBytes: 0
   });
   handlers.setCostComparison(null);
-  
-  const savedPriority = localStorage.getItem('upload-priority') as Priority | null;
-  if (savedPriority && ['high', 'medium', 'low'].includes(savedPriority)) {
-    handlers.setPriority(savedPriority);
-  }
 }

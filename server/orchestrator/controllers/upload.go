@@ -182,13 +182,6 @@ func UploadHandler(c *fiber.Ctx) error {
 	// write .sha256 for convenience
 	_ = os.WriteFile(chunkPath+".sha256", []byte(actualHash), 0644)
 
-	// store priority if provided
-	priority := c.Get("X-Priority")
-	if priority == "" {
-		priority = "normal"
-	}
-	_ = os.WriteFile(chunkPath+".prio", []byte(priority), 0644)
-
 	// update received list
 	if err := helpers.AppendReceivedChunk(dir, idx); err != nil {
 		log.Println("warning appendReceivedChunk:", err)
@@ -312,7 +305,6 @@ func CompleteHandler(c *fiber.Ctx) error {
 		chunkPath := filepath.Join(dir, fmt.Sprintf("chunk_%06d", i))
 		os.Remove(chunkPath)
 		os.Remove(chunkPath + ".sha256")
-		os.Remove(chunkPath + ".prio")
 	}
 	os.Remove(filepath.Join(dir, "received.json"))
 

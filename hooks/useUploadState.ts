@@ -1,15 +1,13 @@
 import { useState } from "react";
-import { Priority, UploadMetrics, CostComparison } from "@/types/UploadMetrics";
+import { UploadMetrics, CostComparison } from "@/types/UploadMetrics";
 import { CompressionSettings } from "@/components/upload/CompressionToggle";
 
 export function useUploadState() {
     const [file, setFile] = useState<File | null>(null);
-    const [priority, setPriority] = useState<Priority>('medium');
     const [progress, setProgress] = useState(0);
     const [isUploading, setIsUploading] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
     const [showCancelDialog, setShowCancelDialog] = useState(false);
-    const [parallel, setParallel] = useState(false);
     const [downloadLink, setDownloadLink] = useState("");
     const [uploadTime, setUploadTime] = useState<string>("");
     const [totalChunks, setTotalChunks] = useState(0);
@@ -39,12 +37,10 @@ export function useUploadState() {
 
     return {
         file, setFile,
-        priority, setPriority,
         progress, setProgress,
         isUploading, setIsUploading,
         isCancelling, setIsCancelling,
         showCancelDialog, setShowCancelDialog,
-        parallel, setParallel,
         downloadLink, setDownloadLink,
         uploadTime, setUploadTime,
         totalChunks, setTotalChunks,

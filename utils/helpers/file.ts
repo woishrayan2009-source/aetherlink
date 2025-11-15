@@ -21,7 +21,6 @@ export const uploadChunk = async (
     uploadID: string,
     idx: number,
     blob: Blob,
-    priority: string,
     networkProfile: NetworkProfile,
     endpoint?: string
 ): Promise<void> => {
@@ -36,13 +35,8 @@ export const uploadChunk = async (
         throw new Error('Simulated network failure');
     }
 
-    const formData = new FormData();
-    formData.append("chunk", blob);
-    formData.append("chunk_index", idx.toString());
-    formData.append("priority", priority);
-
     const res = await axios.put(`${uploadEndpoint}/upload/${uploadID}/${idx}`, blob, {
-        headers: { "Content-Type": blob.type || "application/octet-stream", "X-Priority": priority },
+        headers: { "Content-Type": blob.type || "application/octet-stream" },
     });
 
     if (res.status !== 200) {

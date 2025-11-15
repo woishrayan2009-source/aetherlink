@@ -1,10 +1,3 @@
-export type Priority = 'high' | 'medium' | 'low';
-
-export interface FileWithPriority {
-  file: File;
-  priority: Priority;
-}
-
 export interface UploadMetrics {
   successfulChunks: number;
   failedRetries: number;

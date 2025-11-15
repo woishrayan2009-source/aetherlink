@@ -11,7 +11,7 @@ A distributed file transfer platform that chunks files for reliable uploads with
 ### Frontend (Next.js 16)
 - **Framework**: React 19, TypeScript 5, Next.js 16
 - **Styling**: Tailwind CSS 4, Lucide React icons
-- **Features**: Drag-drop file upload, progress bars, parallel/sequential upload modes
+- **Features**: Drag-drop file upload, progress bars, parallel chunk uploads
 - **Security**: SHA-256 client-side hashing (per-chunk + full file)
 - **Real-time**: SSE for live progress updates
 - **Persistence**: localStorage for resumable sessions
@@ -27,7 +27,7 @@ A distributed file transfer platform that chunks files for reliable uploads with
   - `GET /events/:uploadID` - SSE progress stream
   - `GET /static` - Download assembled files
 - **Security**: Per-chunk SHA-256 validation, final file hash verification
-- **Metadata**: Priority tagging (`.prio`), hash tracking (`.sha256`)
+- **Metadata**: Hash tracking (`.sha256`)
 
 ### Go Client (CLI)
 - **Purpose**: Command-line bulk uploader
@@ -39,11 +39,10 @@ A distributed file transfer platform that chunks files for reliable uploads with
 - ✅ **Chunked Upload**: 1MB chunks (configurable)
 - ✅ **Resume Support**: Query received chunks, skip completed ones
 - ✅ **Integrity Checks**: SHA-256 validation per chunk + full file
-- ✅ **Parallel Mode**: Toggle between sequential/parallel (4 workers)
+- ✅ **Parallel Upload**: Multi-worker chunk upload for faster transfers
 - ✅ **Real-time Progress**: SSE broadcast to all clients
 - ✅ **Auto-reassembly**: Server stitches chunks on `/complete`
 - ✅ **Retry Logic**: Exponential backoff (up to 6 attempts)
-- ✅ **Priority Tagging**: `X-Priority` header support
 - ✅ **CORS Enabled**: Configured for `localhost:3000`
 
 ## Getting Started

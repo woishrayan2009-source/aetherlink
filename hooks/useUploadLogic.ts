@@ -1,6 +1,6 @@
 import { bufferToHex, uploadChunk } from "@/utils/helpers/file";
 import { compressFile, isCompressible as checkCompressible } from "@/utils/helpers/compression";
-import { Priority, UploadMetrics, CostComparison, COST_PER_MB, WASTED_MULTIPLIER } from "@/types/UploadMetrics";
+import { UploadMetrics, CostComparison, COST_PER_MB, WASTED_MULTIPLIER } from "@/types/UploadMetrics";
 import { NetworkProfile } from "@/types/NetworkProfile";
 
 const DEFAULT_ENDPOINT = "http://localhost:8080";
@@ -23,7 +23,6 @@ export function useUploadLogic(params: UploadLogicParams) {
     const performUpload = async (
         file: File,
         startTime: number,
-        priority: Priority,
         currentProfile: NetworkProfile
     ) => {
         const CHUNK_SIZE = currentProfile.chunkSize;
@@ -84,10 +83,9 @@ export function useUploadLogic(params: UploadLogicParams) {
             const start = idx * CHUNK_SIZE;
             const end = Math.min(start + CHUNK_SIZE, file.size);
             const blob = file.slice(start, end);
-            const chunkPriority = priority;
 
             try {
-                await uploadChunk(uploadID, idx, blob, chunkPriority, currentProfile, DEFAULT_ENDPOINT);
+                await uploadChunk(uploadID, idx, blob, currentProfile, DEFAULT_ENDPOINT);
                 uploadedCount++;
                 params.setUploadedChunks(uploadedCount);
                 const progressPct = Math.round((uploadedCount / chunks) * 100);
@@ -123,15 +121,10 @@ export function useUploadLogic(params: UploadLogicParams) {
             if (!receivedSet.has(i)) chunksToUpload.push(i);
         }
 
-        if (currentProfile.workers > 1) {
-            for (let i = 0; i < chunksToUpload.length; i += MAX_WORKERS) {
-                const batch = chunksToUpload.slice(i, i + MAX_WORKERS);
-                await Promise.all(batch.map((idx) => uploadWithRetry(idx)));
-            }
-        } else {
-            for (const idx of chunksToUpload) {
-                await uploadWithRetry(idx);
-            }
+        // Always use parallel uploads
+        for (let i = 0; i < chunksToUpload.length; i += MAX_WORKERS) {
+            const batch = chunksToUpload.slice(i, i + MAX_WORKERS);
+            await Promise.all(batch.map((idx) => uploadWithRetry(idx)));
         }
 
         const completeRes = await fetch(`${DEFAULT_ENDPOINT}/complete/${uploadID}`, { method: "POST" });
@@ -159,7 +152,6 @@ export function useUploadLogic(params: UploadLogicParams) {
 
     const startUpload = async (
         file: File,
-        priority: Priority,
         compressionSettings: any,
         currentProfile: NetworkProfile
     ) => {
@@ -168,7 +160,6 @@ export function useUploadLogic(params: UploadLogicParams) {
         params.setProgress(0);
         params.setUploadTime("");
         params.setUploadedChunks(0);
-        localStorage.setItem('upload-priority', priority);
 
         let fileToUpload = file;
         if (compressionSettings.enabled && checkCompressible(file)) {
@@ -203,7 +194,7 @@ export function useUploadLogic(params: UploadLogicParams) {
         params.setMetrics(prev => ({ ...prev, startTime, totalBytes: fileToUpload.size }));
 
         try {
-            const uploadID = await performUpload(fileToUpload, startTime, priority, currentProfile);
+            const uploadID = await performUpload(fileToUpload, startTime, currentProfile);
 
             const endTime = performance.now();
             params.setUploadTime(((endTime - startTime) / 1000).toFixed(2) + "s");

@@ -9,7 +9,6 @@ interface ActivityPanelProps {
   progress: number;
   uploadedChunks: number;
   totalChunks: number;
-  parallel: boolean;
   currentProfile: NetworkProfile;
   isDark: boolean;
 }
@@ -21,7 +20,6 @@ export function ActivityPanel({
   progress,
   uploadedChunks,
   totalChunks,
-  parallel,
   currentProfile,
   isDark
 }: ActivityPanelProps) {
@@ -45,7 +43,6 @@ export function ActivityPanel({
             progress={progress}
             uploadedChunks={uploadedChunks}
             totalChunks={totalChunks}
-            parallel={parallel}
             currentProfile={currentProfile}
             isDark={isDark}
           />
@@ -72,7 +69,7 @@ export function ActivityPanel({
   );
 }
 
-function UploadingState({ progress, uploadedChunks, totalChunks, parallel, currentProfile, isDark }: any) {
+function UploadingState({ progress, uploadedChunks, totalChunks, currentProfile, isDark }: any) {
   return (
     <div className="space-y-6">
       {/* Pulsing Upload Icon */}
@@ -138,7 +135,7 @@ function UploadingState({ progress, uploadedChunks, totalChunks, parallel, curre
                 Mode
               </span>
               <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-cyan-900'}`}>
-                {parallel ? 'Parallel' : 'Sequential'}
+                Parallel
               </span>
             </div>
             <div className="flex justify-between">

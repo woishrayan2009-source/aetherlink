@@ -14,17 +14,26 @@ import { CancelledMessage } from "./upload/CancelledMessage";
 import { UploadControls } from "./upload/UploadControls";
 import { AdvancedSettingsToggle } from "./upload/AdvancedSettingsToggle";
 import { FileSelector } from "./upload/FileSelector";
+import { NetworkMonitorDisplay } from "./NetworkMonitorDisplay";
 
 import { useUploadState } from "@/hooks/useUploadState";
 import { useNetworkDetection } from "@/hooks/useNetworkDetection";
 import { useUploadPrevention } from "@/hooks/useUploadPrevention";
 import { useUploadLogic } from "@/hooks/useUploadLogic";
+import { useAdaptiveNetworkMonitor } from "@/hooks/useAdaptiveNetworkMonitor";
 import { handleFileChange as handleFileChangeUtil } from "@/utils/helpers/fileHandlers";
 
 export default function FileUpload() {
   const state = useUploadState();
   const { currentProfile } = useNetworkDetection(state.selectedProfile);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  
+  // Enable adaptive network monitoring - runs constantly in background
+  const [useAdaptiveMode, setUseAdaptiveMode] = useState(false);
+  const adaptiveNetwork = useAdaptiveNetworkMonitor(true, 1000); // Monitor every second
+
+  // Use adaptive profile if enabled, otherwise use manual selection
+  const activeProfile = useAdaptiveMode ? adaptiveNetwork.adaptiveProfile : currentProfile;
 
   useUploadPrevention(state.isUploading, state.isCancelling);
 
@@ -40,6 +49,7 @@ export default function FileUpload() {
     setUploadTime: state.setUploadTime,
     setDownloadLink: state.setDownloadLink,
     setCostComparison: state.setCostComparison,
+    setShareId: state.setShareId,
   });
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,10 +58,14 @@ export default function FileUpload() {
 
   const handleUpload = async () => {
     if (!state.file) return;
+    
+    // Lock the profile at upload start to prevent mid-upload changes
+    const uploadProfile = useAdaptiveMode ? adaptiveNetwork.adaptiveProfile : currentProfile;
+    
     await startUpload(
       state.file,
       state.compressionSettings,
-      currentProfile
+      uploadProfile // Use locked profile
     );
   };
 
@@ -99,6 +113,42 @@ export default function FileUpload() {
                   isDark={state.isDark}
                 />
 
+                {/* Adaptive Network Monitor - Always visible, compact */}
+                <div className="space-y-4">
+                  <div className={`flex items-center justify-between p-4 rounded-xl border ${state.isDark ? 'bg-slate-800/50 border-white/10' : 'bg-white/80 border-cyan-200'}`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${state.isDark ? 'bg-cyan-500/20' : 'bg-cyan-100'}`}>
+                        <svg className={`w-5 h-5 ${state.isDark ? 'text-cyan-400' : 'text-cyan-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className={`font-semibold text-sm ${state.isDark ? 'text-white' : 'text-gray-900'}`}>
+                          Adaptive Mode
+                        </h3>
+                        <p className={`text-xs ${state.isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Auto-optimize chunk size based on network
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setUseAdaptiveMode(!useAdaptiveMode)}
+                      disabled={state.isUploading}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${useAdaptiveMode ? 'bg-cyan-500' : state.isDark ? 'bg-gray-700' : 'bg-gray-300'} ${state.isUploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      title={state.isUploading ? 'Cannot change mode during upload' : 'Toggle adaptive mode'}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${useAdaptiveMode ? 'translate-x-6' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+
+                  {useAdaptiveMode && (
+                    <NetworkMonitorDisplay 
+                      networkState={adaptiveNetwork}
+                      className="animate-in fade-in slide-in-from-top-2 duration-300"
+                    />
+                  )}
+                </div>
+
                 <AdvancedSettingsToggle
                   isOpen={showAdvanced}
                   onToggle={() => setShowAdvanced(!showAdvanced)}
@@ -114,12 +164,12 @@ export default function FileUpload() {
                       onFileChange={handleFileChange}
                       compressionSettings={state.compressionSettings}
                       onCompressionChange={state.setCompressionSettings}
-                      workers={currentProfile.workers}
+                      workers={activeProfile.workers}
                       isUploading={state.isUploading}
                       isDark={state.isDark}
                     />
 
-                    <NetworkStatus profile={currentProfile} isDark={state.isDark} />
+                    {/* <NetworkStatus profile={activeProfile} isDark={state.isDark} /> */}
                   </div>
                 )}
 
@@ -156,6 +206,7 @@ export default function FileUpload() {
                     downloadLink={state.downloadLink}
                     uploadTime={state.uploadTime}
                     isDark={state.isDark}
+                    shareId={state.shareId}
                   />
                 )}
 
@@ -181,7 +232,7 @@ export default function FileUpload() {
               progress={state.progress}
               uploadedChunks={state.uploadedChunks}
               totalChunks={state.totalChunks}
-              currentProfile={currentProfile}
+              currentProfile={activeProfile}
               isDark={state.isDark}
             />
           </div>
@@ -193,7 +244,7 @@ export default function FileUpload() {
         uploadedChunks={state.uploadedChunks}
         totalChunks={state.totalChunks}
         progress={state.progress}
-        chunkSize={currentProfile.chunkSize}
+        chunkSize={activeProfile.chunkSize}
         isDark={state.isDark}
         onConfirm={confirmCancel}
         onDismiss={dismissCancelDialog}

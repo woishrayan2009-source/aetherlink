@@ -17,6 +17,7 @@ export function useUploadState() {
     const [costComparison, setCostComparison] = useState<CostComparison | null>(null);
     const [isCompressing, setIsCompressing] = useState(false);
     const [compressionProgress, setCompressionProgress] = useState(0);
+    const [shareId, setShareId] = useState("");
 
     const [metrics, setMetrics] = useState<UploadMetrics>({
         successfulChunks: 0,
@@ -51,6 +52,7 @@ export function useUploadState() {
         metrics, setMetrics,
         compressionSettings, setCompressionSettings,
         isCompressing, setIsCompressing,
-        compressionProgress, setCompressionProgress
+        compressionProgress, setCompressionProgress,
+        shareId, setShareId
     };
 }

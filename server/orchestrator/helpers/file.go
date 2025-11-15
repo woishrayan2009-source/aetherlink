@@ -1,10 +1,19 @@
 package helpers
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"io"
 	"os"
 	"path/filepath"
 )
+
+// GenerateShareID generates a unique share ID for file access control
+func GenerateShareID() string {
+	b := make([]byte, 16) // 16 bytes = 32 hex characters
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}
 
 // MoveFile moves a file from src to dst, with fallback to copy+delete
 func MoveFile(src, dst string) error {

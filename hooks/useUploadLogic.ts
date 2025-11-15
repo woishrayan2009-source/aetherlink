@@ -2,6 +2,7 @@ import { bufferToHex, uploadChunk } from "@/utils/helpers/file";
 import { compressFile, isCompressible as checkCompressible } from "@/utils/helpers/compression";
 import { UploadMetrics, CostComparison, COST_PER_MB, WASTED_MULTIPLIER } from "@/types/UploadMetrics";
 import { NetworkProfile } from "@/types/NetworkProfile";
+import { createXXHash64 } from "xxhash-wasm";
 
 const DEFAULT_ENDPOINT = "http://localhost:8080";
 
@@ -17,6 +18,7 @@ interface UploadLogicParams {
     setUploadTime: (val: string) => void;
     setDownloadLink: (val: string) => void;
     setCostComparison: (val: CostComparison | null) => void;
+    setShareId: (val: string) => void;
 }
 
 export function useUploadLogic(params: UploadLogicParams) {
@@ -25,10 +27,14 @@ export function useUploadLogic(params: UploadLogicParams) {
         startTime: number,
         currentProfile: NetworkProfile
     ) => {
+        // CRITICAL: Lock in the chunk size at the START of upload
+        // This prevents issues when adaptive mode changes the profile during upload
         const CHUNK_SIZE = currentProfile.chunkSize;
         const MAX_WORKERS = currentProfile.workers;
         const chunks = Math.ceil(file.size / CHUNK_SIZE);
         params.setTotalChunks(chunks);
+
+        console.log(`🔒 Upload locked: CHUNK_SIZE=${CHUNK_SIZE}, WORKERS=${MAX_WORKERS}, CHUNKS=${chunks}, FILE_SIZE=${file.size}`);
 
         const chunkHashes: string[] = new Array(chunks);
         for (let i = 0; i < chunks; i++) {
@@ -61,6 +67,9 @@ export function useUploadLogic(params: UploadLogicParams) {
         });
 
         if (!initRes.ok) throw new Error(`init failed: ${initRes.status}`);
+        
+        const initData = await initRes.json() as { upload_id: string; share_id: string };
+        const shareId = initData.share_id;
 
         const statusRes = await fetch(`${DEFAULT_ENDPOINT}/status/${uploadID}`);
         let received: number[] = [];
@@ -80,12 +89,20 @@ export function useUploadLogic(params: UploadLogicParams) {
                 throw new Error('Upload cancelled by user');
             }
 
+            // Use the LOCKED CHUNK_SIZE, not currentProfile.chunkSize
+            // This ensures consistency throughout the upload
             const start = idx * CHUNK_SIZE;
             const end = Math.min(start + CHUNK_SIZE, file.size);
             const blob = file.slice(start, end);
 
             try {
-                await uploadChunk(uploadID, idx, blob, currentProfile, DEFAULT_ENDPOINT);
+                // Create a locked profile snapshot to prevent mid-upload changes
+                const lockedProfile: NetworkProfile = {
+                    ...currentProfile,
+                    chunkSize: CHUNK_SIZE, // Use locked chunk size
+                    workers: MAX_WORKERS    // Use locked worker count
+                };
+                await uploadChunk(uploadID, idx, blob, lockedProfile, DEFAULT_ENDPOINT);
                 uploadedCount++;
                 params.setUploadedChunks(uploadedCount);
                 const progressPct = Math.round((uploadedCount / chunks) * 100);
@@ -121,6 +138,8 @@ export function useUploadLogic(params: UploadLogicParams) {
             if (!receivedSet.has(i)) chunksToUpload.push(i);
         }
 
+        console.log(`📤 Uploading ${chunksToUpload.length} chunks (${received.length} already received)`);
+
         // Always use parallel uploads
         for (let i = 0; i < chunksToUpload.length; i += MAX_WORKERS) {
             const batch = chunksToUpload.slice(i, i + MAX_WORKERS);
@@ -129,6 +148,8 @@ export function useUploadLogic(params: UploadLogicParams) {
 
         const completeRes = await fetch(`${DEFAULT_ENDPOINT}/complete/${uploadID}`, { method: "POST" });
         if (!completeRes.ok) throw new Error(`complete failed: ${completeRes.status}`);
+
+        console.log(`✅ Upload completed successfully: ${uploadID}`);
 
         const fileSizeMB = file.size / 1024 / 1024;
         const retryRate = totalRetries / chunks;
@@ -147,7 +168,7 @@ export function useUploadLogic(params: UploadLogicParams) {
             wastedMultiplier: dynamicWastedMultiplier
         });
 
-        return uploadID;
+        return { uploadID, shareId };
     };
 
     const startUpload = async (
@@ -194,11 +215,14 @@ export function useUploadLogic(params: UploadLogicParams) {
         params.setMetrics(prev => ({ ...prev, startTime, totalBytes: fileToUpload.size }));
 
         try {
-            const uploadID = await performUpload(fileToUpload, startTime, currentProfile);
+            const { uploadID, shareId } = await performUpload(fileToUpload, startTime, currentProfile);
 
             const endTime = performance.now();
             params.setUploadTime(((endTime - startTime) / 1000).toFixed(2) + "s");
             params.setDownloadLink(`${DEFAULT_ENDPOINT.replace(/\/$/, "")}/static/${uploadID}/${encodeURIComponent(fileToUpload.name)}`);
+            params.setShareId(shareId);
+            
+            return shareId;
         } catch (err: any) {
             if (params.isCancelling || err?.message === 'Upload cancelled by user') {
                 console.log('Upload cancelled by user');

@@ -27,12 +27,12 @@ export function UploadControls({
 }: UploadControlsProps) {
   return (
     <div className="space-y-6">
-      <NetworkSelector
+      {/* <NetworkSelector
         selectedProfile={selectedProfile}
         onProfileChange={onProfileChange}
         isUploading={isUploading}
         isDark={isDark}
-      />
+      /> */}
 
       <CompressionToggle
         file={file}

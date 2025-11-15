@@ -7,4 +7,5 @@ type Metadata struct {
 	ChunkSize   int64    `json:"chunk_size"`
 	ChunkHashes []string `json:"chunk_hashes"` // client-provided expected hashes
 	FileHash    string   `json:"file_hash"`    // overall file hash
+	ShareID     string   `json:"share_id"`     // unique share ID for access control
 }

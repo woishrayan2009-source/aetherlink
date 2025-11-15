@@ -10,9 +10,16 @@ import (
 	"aetherlink/routes"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	if os.Getenv("CLOUDINARY_CLOUD_NAME") == "" {
+		err := godotenv.Load()
+		if err != nil {
+			log.Println("Error loading .env file")
+		}
+	}
 	if err := os.MkdirAll(config.StorageRoot, 0755); err != nil {
 		log.Fatal(err)
 	}

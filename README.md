@@ -45,31 +45,6 @@ A distributed file transfer platform that chunks files for reliable uploads with
 - ✅ **Retry Logic**: Exponential backoff (up to 6 attempts)
 - ✅ **CORS Enabled**: Configured for `localhost:3000`
 
-## Getting Started
-
-### Frontend (Next.js)
-```bash
-# Install dependencies
-yarn install
-
-# Run development server
-yarn dev
-```
-Open [http://localhost:3000](http://localhost:3000)
-
-### Backend (Go Orchestrator)
-```bash
-cd server/orchestrator
-go run main.go
-```
-Server runs on [http://localhost:8080](http://localhost:8080)
-
-### CLI Client (Go)
-```bash
-cd server/client
-go run uploader.go <upload-id> <file-path>
-```
-
 ## Architecture
 
 ```
@@ -92,14 +67,3 @@ go run uploader.go <upload-id> <file-path>
 - ✅ Test files successfully transferred (25+ chunks processed)
 - ✅ Real-time progress tracking operational
 - ✅ Resume capability tested and working
-
-## Environment Variables
-
-Create `.env.local`:
-```bash
-NEXT_PUBLIC_wSERVER_URL=http://localhost:8080
-```
-
-## License
-
-MIT

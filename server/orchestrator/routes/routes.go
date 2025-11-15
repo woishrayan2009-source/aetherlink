@@ -16,6 +16,9 @@ func SetupRoutes(app *fiber.App) {
 	app.Get("/status/:uploadID", controllers.StatusHandler)
 	app.Post("/complete/:uploadID", controllers.CompleteHandler)
 
+	// Cleanup endpoint
+	app.Delete("/cleanup/:uploadID", controllers.CleanupHandler)
+
 	// SSE endpoint for real-time progress
 	app.Get("/events/:uploadID", controllers.SSEHandler)
 

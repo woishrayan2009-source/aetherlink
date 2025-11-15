@@ -1,7 +1,7 @@
 import { bufferToHex, uploadChunk } from "@/utils/helpers/file";
-import { compressFile, isCompressible as checkCompressible } from "@/utils/helpers/compression";
 import { UploadMetrics, CostComparison, COST_PER_MB, WASTED_MULTIPLIER } from "@/types/UploadMetrics";
 import { NetworkProfile } from "@/types/NetworkProfile";
+import { AdaptiveConcurrency } from "@/utils/AdaptiveConcurrency";
 import xxhashWasm from "xxhash-wasm";
 
 const DEFAULT_ENDPOINT = "http://localhost:8080";
@@ -20,6 +20,13 @@ interface UploadLogicParams {
     setCostComparison: (val: CostComparison | null) => void;
     setShareId: (val: string) => void;
     setActiveWorkers: (val: number) => void;
+    // Telemetry callbacks (optional for backward compatibility)
+    onChunkStart?: (chunkId: string, index: number) => void;
+    onChunkComplete?: (chunkId: string, index: number, durationMs: number, attempt: number) => void;
+    onChunkError?: (chunkId: string, index: number, error: string, attempt: number) => void;
+    onConcurrencyChange?: (newValue: number, oldValue: number, reason: string) => void;
+    onNetworkDegradation?: (reason: string) => void;
+    onNetworkRecovery?: (reason: string) => void;
 }
 
 export function useUploadLogic(params: UploadLogicParams) {
@@ -31,11 +38,47 @@ export function useUploadLogic(params: UploadLogicParams) {
         // CRITICAL: Lock in the chunk size at the START of upload
         // This prevents issues when adaptive mode changes the profile during upload
         const CHUNK_SIZE = currentProfile.chunkSize;
-        const MAX_WORKERS = currentProfile.workers;
         const chunks = Math.ceil(file.size / CHUNK_SIZE);
         params.setTotalChunks(chunks);
 
-        console.log(`🔒 Upload locked: CHUNK_SIZE=${CHUNK_SIZE}, WORKERS=${MAX_WORKERS}, CHUNKS=${chunks}, FILE_SIZE=${file.size}`);
+        console.log(`🔒 Upload locked: CHUNK_SIZE=${CHUNK_SIZE}, CHUNKS=${chunks}, FILE_SIZE=${file.size}`);
+
+        // Initialize adaptive concurrency manager
+        const adaptiveManager = new AdaptiveConcurrency({
+            min: 4,
+            max: 40,
+            initial: 10,
+            increaseStep: 2,
+            decreaseStep: 4,
+            evaluationInterval: 1500,
+            performanceThreshold: 15,
+            degradationThreshold: 20,
+            errorRateThreshold: 10,
+            stabilityWindow: 3,
+        });
+
+        adaptiveManager.start();
+        adaptiveManager.reset();
+
+        // Subscribe to adaptive events
+        const unsubscribe = adaptiveManager.on((event) => {
+            switch (event.type) {
+                case 'concurrencyChanged':
+                    console.log(`🔄 Workers: ${event.oldValue} → ${event.newValue} (${event.reason})`);
+                    params.onConcurrencyChange?.(event.newValue, event.oldValue, event.reason);
+                    break;
+                case 'networkDegraded':
+                    console.log('⚠️ Network degraded - reducing workers');
+                    params.onNetworkDegradation?.('Network performance degraded');
+                    break;
+                case 'networkRecovered':
+                    console.log('✅ Network recovered - optimizing workers');
+                    params.onNetworkRecovery?.('Network performance recovered');
+                    break;
+            }
+        });
+
+        console.log(`🎯 Adaptive mode: min=4, max=40, initial=10`);
 
         // Initialize xxHash
         const hasher = await xxhashWasm();
@@ -97,14 +140,30 @@ export function useUploadLogic(params: UploadLogicParams) {
             const end = Math.min(start + CHUNK_SIZE, file.size);
             const blob = file.slice(start, end);
 
+            // Record chunk start for adaptive concurrency
+            const chunkId = `${uploadID}-${idx}`;
+            adaptiveManager.recordChunkStart(chunkId);
+            const chunkStartTime = performance.now();
+            
+            // Telemetry: Record chunk start
+            params.onChunkStart?.(chunkId, idx);
+
             try {
                 // Create a locked profile snapshot to prevent mid-upload changes
                 const lockedProfile: NetworkProfile = {
                     ...currentProfile,
                     chunkSize: CHUNK_SIZE, // Use locked chunk size
-                    workers: MAX_WORKERS    // Use locked worker count
+                    workers: adaptiveManager.getConcurrency() // Use adaptive concurrency
                 };
                 await uploadChunk(uploadID, idx, blob, lockedProfile, DEFAULT_ENDPOINT);
+                
+                // Record success
+                const chunkDuration = performance.now() - chunkStartTime;
+                adaptiveManager.recordChunkSuccess(chunkId, chunkDuration, attempt - 1);
+                
+                // Telemetry: Record chunk completion
+                params.onChunkComplete?.(chunkId, idx, chunkDuration, attempt);
+                
                 uploadedCount++;
                 params.setUploadedChunks(uploadedCount);
                 const progressPct = Math.round((uploadedCount / chunks) * 100);
@@ -116,6 +175,17 @@ export function useUploadLogic(params: UploadLogicParams) {
                     bandwidth: (file.size / ((performance.now() - startTime) / 1000)) / 1024 / 1024
                 }));
             } catch (err) {
+                // Record error
+                const errorMessage = (err as Error).message || 'Unknown error';
+                adaptiveManager.recordChunkError(
+                    chunkId,
+                    errorMessage,
+                    attempt - 1
+                );
+                
+                // Telemetry: Record chunk error
+                params.onChunkError?.(chunkId, idx, errorMessage, attempt);
+                
                 if (params.isCancelling || (err as Error).message === 'Upload cancelled by user') {
                     throw err;
                 }
@@ -142,13 +212,51 @@ export function useUploadLogic(params: UploadLogicParams) {
 
         console.log(`📤 Uploading ${chunksToUpload.length} chunks (${received.length} already received)`);
 
-        // Always use parallel uploads
-        for (let i = 0; i < chunksToUpload.length; i += MAX_WORKERS) {
-            const batch = chunksToUpload.slice(i, i + MAX_WORKERS);
-            params.setActiveWorkers(batch.length);
-            await Promise.all(batch.map((idx) => uploadWithRetry(idx)));
+        // Adaptive worker pool
+        const activeUploads = new Map<number, Promise<void>>();
+        let queueIndex = 0;
+
+        const fillWorkerPool = () => {
+            const maxConcurrent = adaptiveManager.getConcurrency();
+
+            while (activeUploads.size < maxConcurrent && queueIndex < chunksToUpload.length) {
+                const idx = chunksToUpload[queueIndex++];
+
+                const uploadPromise = uploadWithRetry(idx)
+                    .finally(() => {
+                        activeUploads.delete(idx);
+                        params.setActiveWorkers(activeUploads.size);
+                    });
+
+                activeUploads.set(idx, uploadPromise);
+            }
+
+            params.setActiveWorkers(activeUploads.size);
+        };
+
+        // Main upload loop with adaptive concurrency
+        while (queueIndex < chunksToUpload.length || activeUploads.size > 0) {
+            fillWorkerPool();
+
+            if (activeUploads.size > 0) {
+                await Promise.race(Array.from(activeUploads.values()));
+            }
         }
+
         params.setActiveWorkers(0);
+
+        // Stop adaptive manager and log final metrics
+        adaptiveManager.stop();
+        unsubscribe();
+
+        const finalMetrics = adaptiveManager.getMetrics();
+        if (finalMetrics) {
+            console.log('📊 Final metrics:', {
+                avgTime: `${finalMetrics.averageUploadTime.toFixed(0)}ms`,
+                success: `${finalMetrics.successRate.toFixed(1)}%`,
+                throughput: `${finalMetrics.throughput.toFixed(2)} chunks/s`,
+            });
+        }
 
         const completeRes = await fetch(`${DEFAULT_ENDPOINT}/complete/${uploadID}`, { method: "POST" });
         if (!completeRes.ok) throw new Error(`complete failed: ${completeRes.status}`);
@@ -187,34 +295,7 @@ export function useUploadLogic(params: UploadLogicParams) {
         params.setUploadedChunks(0);
         params.setActiveWorkers(0);
 
-        let fileToUpload = file;
-        if (compressionSettings.enabled && checkCompressible(file)) {
-            try {
-                params.setIsCompressing(true);
-                fileToUpload = await compressFile(
-                    file,
-                    {
-                        quality: compressionSettings.quality,
-                        level: compressionSettings.level
-                    },
-                    (progress) => {
-                        params.setCompressionProgress(progress);
-                    }
-                );
-                params.setIsCompressing(false);
-                params.setCompressionProgress(0);
-            } catch (error) {
-                console.error('Compression failed:', error);
-                params.setIsCompressing(false);
-                const shouldContinue = confirm(
-                    `Compression failed: ${error instanceof Error ? error.message : 'Unknown error'}\n\nDo you want to upload the original file instead?`
-                );
-                if (!shouldContinue) {
-                    params.setIsUploading(false);
-                    return;
-                }
-            }
-        }
+        const fileToUpload = file;
 
         const startTime = performance.now();
         params.setMetrics(prev => ({ ...prev, startTime, totalBytes: fileToUpload.size }));

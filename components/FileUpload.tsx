@@ -6,6 +6,7 @@ import { ProgressDisplay } from "./upload/ProgressDisplay";
 import { SuccessMessage } from "./upload/SuccessMessage";
 import { ActivityPanel } from "./upload/ActivityPanel";
 import { CostComparison as CostComparisonComponent } from "./upload/CostComparison";
+import { TelemetryDashboard } from "./telemetry";
 import { UploadButton } from "./upload/UploadButton";
 import { CancelButton } from "./upload/CancelButton";
 import { CancelDialog } from "./upload/CancelDialog";
@@ -20,6 +21,7 @@ import { useNetworkDetection } from "@/hooks/useNetworkDetection";
 import { useUploadPrevention } from "@/hooks/useUploadPrevention";
 import { useUploadLogic } from "@/hooks/useUploadLogic";
 import { useAdaptiveNetworkMonitor } from "@/hooks/useAdaptiveNetworkMonitor";
+import { useUploadTelemetry } from "@/hooks/useUploadTelemetry";
 import { handleFileChange as handleFileChangeUtil } from "@/utils/helpers/fileHandlers";
 
 export default function FileUpload() {
@@ -33,6 +35,15 @@ export default function FileUpload() {
   const activeProfile = useAdaptiveMode ? adaptiveNetwork.adaptiveProfile : currentProfile;
 
   useUploadPrevention(state.isUploading, state.isCancelling);
+
+  // Initialize telemetry tracking
+  const telemetry = useUploadTelemetry({
+    isUploading: state.isUploading,
+    uploadedChunks: state.uploadedChunks,
+    totalChunks: state.totalChunks,
+    activeWorkers: state.activeWorkers,
+    startTime: state.metrics.startTime,
+  });
 
   const { startUpload } = useUploadLogic({
     isCancelling: state.isCancelling,
@@ -48,6 +59,21 @@ export default function FileUpload() {
     setCostComparison: state.setCostComparison,
     setShareId: state.setShareId,
     setActiveWorkers: state.setActiveWorkers,
+    // Wire up telemetry callbacks (adapter functions)
+    onChunkStart: (_chunkId: string, index: number) => {
+      telemetry.recordChunkStart(index);
+    },
+    onChunkComplete: (_chunkId: string, index: number, _durationMs: number, attempt: number) => {
+      telemetry.recordChunkComplete(index, attempt - 1); // Convert attempt to retry count
+    },
+    onChunkError: (chunkId, index, error) => {
+      console.warn(`Chunk ${index} error: ${error}`);
+    },
+    onConcurrencyChange: (newValue: number, oldValue: number, reason: string) => {
+      telemetry.recordConcurrencyChange(newValue, reason);
+    },
+    onNetworkDegradation: telemetry.recordNetworkDegradation,
+    onNetworkRecovery: telemetry.recordNetworkRecovery,
   });
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -195,7 +221,18 @@ export default function FileUpload() {
                   />
                 )}
 
-                {state.costComparison && (
+                {/* Enhanced Telemetry Dashboard */}
+                {(state.isUploading || state.downloadLink || telemetry.telemetry.latencyPoints.length > 0) && (
+                  <TelemetryDashboard
+                    telemetry={telemetry.telemetry}
+                    totalChunks={state.totalChunks}
+                    isDark={true}
+                    isUploading={state.isUploading}
+                  />
+                )}
+
+                {/* Legacy Cost Comparison (optional) */}
+                {state.costComparison && state.downloadLink && (
                   <CostComparisonComponent
                     costComparison={state.costComparison}
                     metrics={state.metrics}

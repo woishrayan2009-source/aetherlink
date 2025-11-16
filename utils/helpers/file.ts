@@ -1,6 +1,6 @@
 import { NetworkProfile } from '@/types/NetworkProfile';
 import axios from 'axios';
-const API_URL = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:8080";
+const API_URL = process.env.NEXT_PUBLIC_SERVER_URL!;
 
 export const bufferToHex = (buf: ArrayBuffer) => {
     const arr = new Uint8Array(buf);

@@ -6,7 +6,7 @@ import { FileList } from "@/components/receiver";
 import { ReceiverHeader } from "@/components/receiver/ReceiverHeader";
 import { ShareIDInput, RoomDashboard } from "@/components/receiver";
 
-const DEFAULT_ENDPOINT = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:8080";
+const DEFAULT_ENDPOINT = process.env.NEXT_PUBLIC_SERVER_URL!;
 
 export interface FileMetadata {
     upload_id: string;
@@ -94,7 +94,7 @@ function ReceiverContent() {
 
     return (
         <div className="min-h-screen bg-linear-to-br from-zinc-900 via-zinc-800 to-zinc-900">
-            <div className="container mx-auto px-4 py-8 max-w-7xl">
+            <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 max-w-7xl">
                 {!shareID ? (
                     <ShareIDInput onSubmit={setShareID} />
                 ) : (

@@ -114,16 +114,16 @@ export default function FileUpload() {
   };
 
   return (
-    <div className="h-screen overflow-hidden dark bg-linear-to-br from-slate-950 via-cyan-950 to-slate-950">
-      <div className="h-full flex flex-col lg:flex-row gap-6 p-4 lg:p-6 max-w-7xl mx-auto overflow-hidden">
+    <div className="min-h-screen overflow-hidden dark bg-linear-to-br from-slate-950 via-cyan-950 to-slate-950">
+      <div className="h-full flex flex-col lg:flex-row gap-3 sm:gap-4 lg:gap-6 p-3 sm:p-4 lg:p-6 max-w-7xl mx-auto overflow-hidden">
         <div className="flex-1 lg:grow-2 flex flex-col min-h-0">
           <div className="h-full overflow-y-auto custom-scrollbar">
-            <div className="backdrop-blur-2xl rounded-3xl shadow-2xl border overflow-hidden transition-all duration-300 bg-slate-900/40 border-white/10">
+            <div className="backdrop-blur-2xl rounded-2xl sm:rounded-3xl shadow-2xl border overflow-hidden transition-all duration-300 bg-slate-900/40 border-white/10">
               <div className="absolute inset-0 pointer-events-none bg-linear-to-br from-cyan-500/10 via-blue-500/10 to-cyan-500/10" />
 
               <UploadHeader />
 
-              <div className="relative p-8 space-y-6">
+              <div className="relative p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-5 lg:space-y-6">
                 <FileSelector
                   file={state.file}
                   onFileChange={handleFileChange}
@@ -136,19 +136,19 @@ export default function FileUpload() {
                   disabled={state.isUploading}
                 />
 
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 rounded-xl border bg-slate-800/50 border-white/10">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-cyan-500/20">
-                        <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex items-center justify-between p-3 sm:p-4 rounded-xl border bg-slate-800/50 border-white/10">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="p-1.5 sm:p-2 rounded-lg bg-cyan-500/20">
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
                       </div>
                       <div>
-                        <h3 className="font-semibold text-sm text-white">
+                        <h3 className="font-semibold text-xs sm:text-sm text-white">
                           Adaptive Mode
                         </h3>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-gray-400 hidden sm:block">
                           Auto-optimize chunk size based on network
                         </p>
                       </div>
@@ -177,7 +177,7 @@ export default function FileUpload() {
                 />
 
                 {showAdvanced && (
-                  <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <div className="space-y-4 sm:space-y-5 lg:space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
                     <UploadControls
                       selectedProfile={state.selectedProfile}
                       onProfileChange={state.setSelectedProfile}

@@ -4,7 +4,7 @@ import { NetworkProfile } from "@/types/NetworkProfile";
 import { AdaptiveConcurrency } from "@/utils/AdaptiveConcurrency";
 import xxhashWasm from "xxhash-wasm";
 
-const DEFAULT_ENDPOINT = "http://localhost:8080";
+const DEFAULT_ENDPOINT = process.env.NEXT_PUBLIC_SERVER_URL!;
 
 interface UploadLogicParams {
     isCancelling: boolean;

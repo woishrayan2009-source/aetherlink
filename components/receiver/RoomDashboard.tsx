@@ -195,25 +195,25 @@ export function RoomDashboard({ shareId, endpoint, onFilesChange }: RoomDashboar
   const hasCompletedFiles = roomState.completed_files?.length > 0;
 
   return (
-    <div className="mb-8 space-y-4">
+    <div className="mb-4 sm:mb-6 lg:mb-8 space-y-3 sm:space-y-4">
       {/* Room Status Header */}
-      <div className="p-6 bg-zinc-800/50 border border-zinc-700 rounded-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <div className="p-4 sm:p-6 bg-zinc-800/50 border border-zinc-700 rounded-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
             <div>
-              <h3 className="text-lg font-semibold text-zinc-100">Room Active</h3>
-              <p className="text-sm text-zinc-400">
+              <h3 className="text-base sm:text-lg font-semibold text-zinc-100">Room Active</h3>
+              <p className="text-xs sm:text-sm text-zinc-400">
                 {roomState?.active_uploads?.length || 0} active · {roomState?.completed_files?.length || 0} completed
               </p>
             </div>
           </div>
           
-          <div className="flex items-center gap-2 px-4 py-2 bg-zinc-900/50 rounded-lg border border-zinc-700">
-            <Clock className="w-4 h-4 text-purple-400" />
+          <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-zinc-900/50 rounded-lg border border-zinc-700 self-start sm:self-auto">
+            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400" />
             <div className="text-right">
               <p className="text-xs text-zinc-500">Expires in</p>
-              <p className="text-sm font-semibold text-zinc-200">
+              <p className="text-xs sm:text-sm font-semibold text-zinc-200">
                 {formatTimeRemaining(expiresIn)}
               </p>
             </div>
@@ -223,17 +223,17 @@ export function RoomDashboard({ shareId, endpoint, onFilesChange }: RoomDashboar
 
       {/* Active Uploads */}
       {hasActiveUploads && (
-        <div className="p-6 bg-zinc-800/50 border border-zinc-700 rounded-lg">
-          <div className="flex items-center gap-2 mb-4">
-            <Upload className="w-5 h-5 text-blue-400" />
-            <h4 className="text-lg font-semibold text-zinc-100">Active Uploads</h4>
+        <div className="p-4 sm:p-6 bg-zinc-800/50 border border-zinc-700 rounded-lg">
+          <div className="flex items-center gap-2 mb-3 sm:mb-4">
+            <Upload className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
+            <h4 className="text-base sm:text-lg font-semibold text-zinc-100">Active Uploads</h4>
           </div>
           
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {roomState.active_uploads.map((upload) => (
-              <div key={upload.upload_id} className="p-4 bg-zinc-900/50 rounded-lg border border-zinc-700/50">
+              <div key={upload.upload_id} className="p-3 sm:p-4 bg-zinc-900/50 rounded-lg border border-zinc-700/50">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-zinc-200 truncate pr-4">
+                  <span className="text-xs sm:text-sm font-medium text-zinc-200 truncate pr-2 sm:pr-4">
                     {upload.filename}
                   </span>
                   <span className="text-xs text-zinc-400 whitespace-nowrap">
@@ -265,12 +265,12 @@ export function RoomDashboard({ shareId, endpoint, onFilesChange }: RoomDashboar
 
       {/* Completed Files Summary */}
       {hasCompletedFiles && (
-        <div className="p-6 bg-zinc-800/50 border border-zinc-700 rounded-lg">
+        <div className="p-4 sm:p-6 bg-zinc-800/50 border border-zinc-700 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
-            <FileCheck className="w-5 h-5 text-green-400" />
-            <h4 className="text-lg font-semibold text-zinc-100">Ready to Download</h4>
+            <FileCheck className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
+            <h4 className="text-base sm:text-lg font-semibold text-zinc-100">Ready to Download</h4>
           </div>
-          <p className="text-sm text-zinc-400">
+          <p className="text-xs sm:text-sm text-zinc-400">
             {roomState.completed_files.length} file{roomState.completed_files.length !== 1 ? "s" : ""} available below
           </p>
         </div>
@@ -278,10 +278,10 @@ export function RoomDashboard({ shareId, endpoint, onFilesChange }: RoomDashboar
 
       {/* Empty State */}
       {!hasActiveUploads && !hasCompletedFiles && (
-        <div className="p-8 bg-zinc-800/50 border border-zinc-700 rounded-lg text-center">
-          <div className="text-5xl mb-4">📭</div>
-          <p className="text-zinc-400 font-medium">No files yet</p>
-          <p className="text-sm text-zinc-500 mt-1">
+        <div className="p-6 sm:p-8 bg-zinc-800/50 border border-zinc-700 rounded-lg text-center">
+          <div className="text-4xl sm:text-5xl mb-3 sm:mb-4">📭</div>
+          <p className="text-sm sm:text-base text-zinc-400 font-medium">No files yet</p>
+          <p className="text-xs sm:text-sm text-zinc-500 mt-1">
             Waiting for files to be uploaded to this room
           </p>
         </div>

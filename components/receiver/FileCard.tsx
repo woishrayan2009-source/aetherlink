@@ -106,34 +106,38 @@ export function FileCard({ file, endpoint, shareID, animationDelay }: FileCardPr
 
   return (
     <div
-      className={`relative border rounded-xl p-6 transition-all hover:shadow-lg hover:shadow-purple-500/10 hover:-translate-y-1 ${getStatusColor()} animate-fade-in`}
+      className={`relative border rounded-lg sm:rounded-xl p-4 sm:p-6 transition-all hover:shadow-lg hover:shadow-purple-500/10 hover:-translate-y-1 ${getStatusColor()} animate-fade-in`}
       style={{ animationDelay: `${animationDelay}ms` }}
     >
       {/* Header */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          {getFileIcon(file.filename)}
-          <div>
-            <h3 className="text-zinc-100 font-semibold text-lg truncate max-w-[200px]" title={file.filename}>
+      <div className="flex items-start justify-between mb-3 sm:mb-4">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="flex-shrink-0">
+            {getFileIcon(file.filename)}
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-zinc-100 font-semibold text-sm sm:text-base lg:text-lg truncate" title={file.filename}>
               {file.filename}
             </h3>
-            <p className="text-zinc-500 text-xs font-mono">{file.upload_id.slice(0, 12)}...</p>
+            <p className="text-zinc-500 text-xs font-mono">{file.upload_id.slice(0, 8)}...</p>
           </div>
         </div>
-        {getStatusIcon()}
+        <div className="flex-shrink-0">
+          {getStatusIcon()}
+        </div>
       </div>
 
       {/* File Info */}
-      <div className="space-y-2 mb-4">
-        <div className="flex justify-between text-sm">
+      <div className="space-y-1.5 sm:space-y-2 mb-3 sm:mb-4">
+        <div className="flex justify-between text-xs sm:text-sm">
           <span className="text-zinc-400">Size</span>
           <span className="text-zinc-200 font-medium">{formatFileSize(file.file_size)}</span>
         </div>
-        <div className="flex justify-between text-sm">
+        <div className="flex justify-between text-xs sm:text-sm">
           <span className="text-zinc-400">Uploaded</span>
           <span className="text-zinc-200 font-medium">{formatDate(file.upload_time)}</span>
         </div>
-        <div className="flex justify-between text-sm">
+        <div className="flex justify-between text-xs sm:text-sm">
           <span className="text-zinc-400">Chunks</span>
           <span className="text-zinc-200 font-medium">
             {file.received_chunks} / {file.total_chunks}
@@ -143,7 +147,7 @@ export function FileCard({ file, endpoint, shareID, animationDelay }: FileCardPr
 
       {/* Progress Bar */}
       {file.status !== "complete" && (
-        <div className="mb-4">
+        <div className="mb-3 sm:mb-4">
           <div className="flex justify-between text-xs text-zinc-400 mb-1">
             <span>Progress</span>
             <span>{file.completion_percentage.toFixed(1)}%</span>
@@ -158,9 +162,9 @@ export function FileCard({ file, endpoint, shareID, animationDelay }: FileCardPr
       )}
 
       {/* Status Badge */}
-      <div className="mb-4">
+      <div className="mb-3 sm:mb-4">
         <span
-          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
+          className={`inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-medium ${
             file.status === "complete"
               ? "bg-green-600/20 text-green-400 border border-green-500/30"
               : file.status === "incomplete"
@@ -178,7 +182,7 @@ export function FileCard({ file, endpoint, shareID, animationDelay }: FileCardPr
       <button
         onClick={handleDownload}
         disabled={file.status !== "complete" || downloading}
-        className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
+        className={`w-full flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg font-medium transition-all ${
           file.status === "complete"
             ? downloading
               ? "bg-purple-600/50 text-purple-200 cursor-wait"

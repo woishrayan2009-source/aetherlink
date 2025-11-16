@@ -57,6 +57,9 @@ func InitHandler(c *fiber.Ctx) error {
 	// broadcast initial zero progress
 	services.SSE.BroadcastProgress(md.UploadID, config.StorageRoot)
 
+	// Notify room of upload start
+	services.Room.NotifyUploadStart(md.ShareID, md.UploadID, md.Filename)
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"upload_id": md.UploadID,
 		"share_id":  md.ShareID,
@@ -200,6 +203,10 @@ func UploadHandler(c *fiber.Ctx) error {
 	// broadcast progress
 	services.SSE.BroadcastProgress(uploadID, config.StorageRoot)
 
+	// Notify room of chunk received
+	received, _ := helpers.ReadReceivedChunks(dir)
+	services.Room.NotifyChunkReceived(md.ShareID, uploadID, len(received), md.TotalChunks)
+
 	return c.JSON(fiber.Map{
 		"status":         "received",
 		"received_bytes": len(body),
@@ -320,6 +327,11 @@ func CompleteHandler(c *fiber.Ctx) error {
 
 	// broadcast completion
 	services.SSE.BroadcastProgress(uploadID, config.StorageRoot)
+
+	// Notify room of upload complete
+	if fileInfo, err := os.Stat(outPath); err == nil {
+		services.Room.NotifyUploadComplete(md.ShareID, uploadID, md.Filename, fileInfo.Size())
+	}
 
 	log.Printf("[COMPLETE] Upload %s assembled successfully: %s", uploadID, md.Filename)
 

@@ -24,6 +24,10 @@ func SetupRoutes(app *fiber.App) {
 	// Secure download endpoint (requires share_id)
 	app.Get("/download/:uploadID/:filename", controllers.SecureDownloadHandler)
 
+	// Room endpoints for multi-user support
+	app.Get("/room/:shareId", controllers.RoomHandler)
+	app.Get("/room/:shareId/events", controllers.RoomSSEHandler)
+
 	app.Get("/events/:uploadID", controllers.SSEHandler)
 
 	// Public static files (legacy - consider deprecating for security)

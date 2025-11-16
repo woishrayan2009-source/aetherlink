@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { FileList } from "@/components/receiver";
 import { ReceiverHeader } from "@/components/receiver/ReceiverHeader";
-import { ShareIDInput } from "@/components/receiver";
+import { ShareIDInput, RoomDashboard } from "@/components/receiver";
 
 const DEFAULT_ENDPOINT = process.env.NEXT_PUBLIC_SERVER_URL || "http://localhost:8080";
 
@@ -19,7 +19,7 @@ export interface FileMetadata {
     completion_percentage: number;
 }
 
-export default function ReceiverPage() {
+function ReceiverContent() {
     const searchParams = useSearchParams();
     const [shareID, setShareID] = useState<string>(searchParams.get("share_id") || "");
     const [files, setFiles] = useState<FileMetadata[]>([]);
@@ -61,6 +61,7 @@ export default function ReceiverPage() {
 
     useEffect(() => {
         fetchFiles();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [shareID]); // Re-fetch when share ID changes
 
     useEffect(() => {
@@ -71,6 +72,7 @@ export default function ReceiverPage() {
         }, 5000); // Refresh every 5 seconds
 
         return () => clearInterval(interval);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [autoRefresh, shareID]);
 
     const filteredFiles = files.filter((file) =>
@@ -109,6 +111,18 @@ export default function ReceiverPage() {
                             isRefreshing={loading}
                             shareID={shareID}
                             onChangeShareID={() => setShareID("")}
+                        />
+
+                        {/* Room Dashboard */}
+                        <RoomDashboard 
+                            shareId={shareID} 
+                            endpoint={DEFAULT_ENDPOINT}
+                            onFilesChange={(completedFiles) => {
+                                // Optionally sync completed files with the file list
+                                if (completedFiles.length > files.length) {
+                                    fetchFiles();
+                                }
+                            }}
                         />
 
                         {loading && files.length === 0 ? (
@@ -153,5 +167,24 @@ export default function ReceiverPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function ReceiverPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-linear-to-br from-zinc-900 via-zinc-800 to-zinc-900">
+                <div className="container mx-auto px-4 py-8 max-w-7xl">
+                    <div className="flex items-center justify-center min-h-[400px]">
+                        <div className="text-center">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+                            <p className="text-zinc-400">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }>
+            <ReceiverContent />
+        </Suspense>
     );
 }

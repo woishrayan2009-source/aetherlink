@@ -3,6 +3,7 @@ export { UploadHeader } from './UploadHeader';
 export { NetworkSelector } from './NetworkSelector';
 export { NetworkStatus } from './NetworkStatus';
 export { FileSelector } from './FileSelector';
+export { ShareIDSetter } from './ShareIDSetter';
 export { ProgressDisplay } from './ProgressDisplay';
 export { SuccessMessage } from './SuccessMessage';
 export { CostComparison } from './CostComparison';

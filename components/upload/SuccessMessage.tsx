@@ -51,19 +51,105 @@ export function SuccessMessage({ downloadLink, uploadTime, isDark, shareId }: Su
       </div>
 
 
+      {/* Share ID Section - PROMINENT */}
+      <div className={`backdrop-blur-sm rounded-xl p-5 border-2 transition-all duration-300 ${isDark
+        ? 'bg-purple-500/20 border-purple-500/50'
+        : 'bg-purple-100 border-purple-400'
+        }`}>
+        <div className="flex items-center justify-between mb-2">
+          <p className={`text-xs uppercase tracking-wider font-semibold transition-colors duration-300 ${isDark ? 'text-purple-300' : 'text-purple-700'
+            }`}>🔑 Share ID (Required for Access)</p>
+        </div>
+        <div className={`flex items-center justify-between gap-3 p-3 rounded-lg mb-3 transition-all duration-300 ${isDark ? 'bg-slate-900/70' : 'bg-white/80'
+          }`}>
+          <code className={`flex-1 text-sm font-mono break-all transition-colors duration-300 ${isDark ? 'text-purple-300' : 'text-purple-700'
+            }`}>
+            {shareId}
+          </code>
+          <button
+            onClick={() => copyToClipboard(shareId, true)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-300 ${isDark
+              ? 'bg-purple-500/30 hover:bg-purple-500/40 text-purple-300'
+              : 'bg-purple-200 hover:bg-purple-300 text-purple-700'
+              }`}
+          >
+            {copiedShareId ? (
+              <>
+                <Check className="w-4 h-4" />
+                <span className="text-sm font-medium">Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4" />
+                <span className="text-sm font-medium">Copy</span>
+              </>
+            )}
+          </button>
+        </div>
+        <p className={`text-xs transition-colors duration-300 ${isDark ? 'text-purple-300/70' : 'text-purple-600'
+          }`}>
+          📤 Share this ID with recipients so they can access your files
+        </p>
+      </div>
+
+      {/* Share Link Section */}
+      <div className={`backdrop-blur-sm rounded-xl p-4 border transition-all duration-300 ${isDark ? 'bg-slate-900/50 border-white/10' : 'bg-white/60 border-green-300'
+        }`}>
+        <div className="flex items-center justify-between mb-2">
+          <p className={`text-xs uppercase tracking-wider transition-colors duration-300 ${isDark ? 'text-green-300/70' : 'text-green-600'
+            }`}>🔗 Quick Share Link</p>
+        </div>
+        <div className={`flex items-center justify-between gap-3 p-3 rounded-lg transition-all duration-300 ${isDark ? 'bg-slate-900/50' : 'bg-white/50'
+          }`}>
+          <a
+            href={shareLink}
+            target="_blank"
+            rel="noreferrer"
+            className={`flex-1 break-all text-sm underline transition-colors duration-300 ${isDark ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'
+              }`}
+          >
+            {shareLink}
+          </a>
+          <button
+            onClick={() => copyToClipboard(shareLink, false)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-300 ${isDark
+              ? 'bg-slate-700/50 hover:bg-slate-700/70 text-cyan-300'
+              : 'bg-slate-200 hover:bg-slate-300 text-cyan-700'
+              }`}
+          >
+            {copied ? (
+              <>
+                <Check className="w-4 h-4" />
+                <span className="text-sm font-medium">Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4" />
+                <span className="text-sm font-medium">Copy</span>
+              </>
+            )}
+          </button>
+        </div>
+        <p className={`text-xs mt-2 transition-colors duration-300 ${isDark ? 'text-slate-400' : 'text-slate-600'
+          }`}>
+          📧 Or send this direct link (includes share ID)
+        </p>
+      </div>
+
       {/* Download Link Section */}
       <div className={`backdrop-blur-sm rounded-xl p-4 border transition-all duration-300 ${isDark ? 'bg-slate-900/50 border-white/10' : 'bg-white/60 border-green-300'
         }`}>
         <p className={`text-xs mb-2 uppercase tracking-wider transition-colors duration-300 ${isDark ? 'text-green-300/70' : 'text-green-600'
-          }`}>Download Link</p>
+          }`}>📥 Direct Download</p>
         <a
           href={downloadLink}
           target="_blank"
           rel="noreferrer"
-          className={`break-all text-sm underline transition-colors duration-300 ${isDark ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'
+          className={`break-all text-sm underline transition-colors duration-300 flex items-center gap-2 ${isDark ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'
             }`}
         >
-          {downloadLink}
+          <ExternalLink className="w-4 h-4 flex-shrink-0" />
+          <span>{downloadLink}</span>
         </a>
       </div>
     </div>

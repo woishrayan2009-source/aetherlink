@@ -1,6 +1,31 @@
-# AetherLink
+# 🚀 AetherLink
 
-**Resilient file transfer system with chunked uploads, resume capability, integrity verification, and real-time progress tracking.**
+**A modern, secure file transfer system with P2P capabilities and share ID-based access control.**
+
+[![Status](https://img.shields.io/badge/status-production--ready-brightgreen)]()
+[![Security](https://img.shields.io/badge/security-share--ID--protected-blue)]()
+[![Backend](https://img.shields.io/badge/backend-Go%2FFiber-00ADD8)]()
+[![Frontend](https://img.shields.io/badge/frontend-Next.js%2014-000000)]()
+
+---
+
+## 🔐 NEW: Share ID Security System
+
+**Files are now protected by unique Share IDs!**
+
+- 🔑 **32-character hex IDs** - Cryptographically secure
+- 🛡️ **Access control** - Only users with Share ID can access files
+- 🚫 **No bypass** - Server validates all requests
+- ✅ **Tested & ready** - See `TEST_RESULTS.md`
+
+**How it works:**
+1. Upload file → Get Share ID
+2. Share ID with recipient
+3. Recipient enters Share ID → Access files
+
+**[Read full security documentation →](docs/SHARE_ID_ACCESS_CONTROL.md)**
+
+---
 
 ## What This Is
 

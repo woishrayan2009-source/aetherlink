@@ -17,9 +17,15 @@ func SetupRoutes(app *fiber.App) {
 
 	app.Delete("/cleanup/:uploadID", controllers.CleanupHandler)
 
-	// app.Get("/files", controllers.FilesHandler)
+	// File listing and info endpoints (require share_id)
+	app.Get("/files", controllers.FilesHandler)
+	app.Get("/file/:uploadID", controllers.FileInfoHandler)
+
+	// Secure download endpoint (requires share_id)
+	app.Get("/download/:uploadID/:filename", controllers.SecureDownloadHandler)
 
 	app.Get("/events/:uploadID", controllers.SSEHandler)
 
+	// Public static files (legacy - consider deprecating for security)
 	app.Static("/static", config.StorageRoot)
 }

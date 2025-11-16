@@ -18,6 +18,14 @@ export function WorkerEfficiencyGauge({
   isNetworkDegraded,
   isDark,
 }: WorkerEfficiencyGaugeProps) {
+  // DEFENSIVE: Clamp activeWorkers to never exceed totalWorkers in UI
+  const displayWorkers = Math.min(activeWorkers, totalWorkers);
+  
+  // Detect and log UI overflow (shouldn't happen with backend fixes)
+  if (activeWorkers > totalWorkers) {
+    console.error(`❌ TELEMETRY UI OVERFLOW: ${activeWorkers} active workers > ${totalWorkers} max workers`);
+  }
+  
   // Calculate gauge arc
   const gaugeConfig = useMemo(() => {
     const radius = 40;
@@ -69,7 +77,7 @@ export function WorkerEfficiencyGauge({
         <div className="relative w-32 h-32">
           <svg
             viewBox={gaugeConfig.viewBox}
-            className="w-full h-full transform -rotate-[135deg]"
+            className="w-full h-full transform -rotate-135"
           >
             {/* Background arc */}
             <circle
@@ -119,8 +127,12 @@ export function WorkerEfficiencyGauge({
           <span className={isDark ? 'text-white/60' : 'text-cyan-600/70'}>
             Active Workers
           </span>
-          <span className={`font-semibold ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
-            {activeWorkers} / {totalWorkers}
+          <span className={`font-semibold ${
+            displayWorkers > totalWorkers
+              ? 'text-red-500'  // Red if overflow (shouldn't happen)
+              : isDark ? 'text-cyan-400' : 'text-cyan-600'
+          }`}>
+            {displayWorkers} / {totalWorkers}
           </span>
         </div>
         

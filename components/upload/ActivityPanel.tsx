@@ -73,6 +73,15 @@ export function ActivityPanel({
 }
 
 function UploadingState({ progress, uploadedChunks, totalChunks, currentProfile, isDark, activeWorkers }: any) {
+  // DEFENSIVE: Clamp activeWorkers to never exceed maxWorkers in UI
+  const maxWorkers = currentProfile.workers;
+  const displayWorkers = Math.min(activeWorkers, maxWorkers);
+  
+  // Detect and log UI overflow (shouldn't happen with backend fixes)
+  if (activeWorkers > maxWorkers) {
+    console.error(`❌ UI OVERFLOW DETECTED: ${activeWorkers} active workers > ${maxWorkers} max workers`);
+  }
+  
   return (
     <div className="space-y-6">
       {/* Pulsing Upload Icon */}
@@ -154,12 +163,18 @@ function UploadingState({ progress, uploadedChunks, totalChunks, currentProfile,
                 Active Workers
               </span>
               <div className="flex items-center space-x-2">
-                <span className={`text-sm font-bold ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
-                  {activeWorkers}
+                <span className={`text-sm font-bold ${
+                  displayWorkers > maxWorkers 
+                    ? 'text-red-500'  // Red if overflow (shouldn't happen)
+                    : isDark ? 'text-cyan-400' : 'text-cyan-600'
+                }`}>
+                  {displayWorkers}
                 </span>
-                {activeWorkers > 0 && (
+                {displayWorkers > 0 && (
                   <div className={`w-2 h-2 rounded-full animate-pulse ${
-                    isDark ? 'bg-green-400' : 'bg-green-500'
+                    displayWorkers > maxWorkers
+                      ? 'bg-red-500'  // Red indicator if overflow
+                      : isDark ? 'bg-green-400' : 'bg-green-500'
                   }`} />
                 )}
               </div>

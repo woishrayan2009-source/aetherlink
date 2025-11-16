@@ -28,6 +28,12 @@ func InitHandler(c *fiber.Ctx) error {
 	if md.UploadID == "" {
 		return c.Status(fiber.StatusBadRequest).SendString("upload_id required")
 	}
+
+	// Generate unique share ID if not provided
+	if md.ShareID == "" {
+		md.ShareID = helpers.GenerateShareID()
+	}
+
 	dir := filepath.Join(config.StorageRoot, md.UploadID)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString("mkdir error")
@@ -51,7 +57,10 @@ func InitHandler(c *fiber.Ctx) error {
 	// broadcast initial zero progress
 	services.SSE.BroadcastProgress(md.UploadID, config.StorageRoot)
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"upload_id": md.UploadID})
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"upload_id": md.UploadID,
+		"share_id":  md.ShareID,
+	})
 }
 
 // UploadHandler handles chunk upload with hash validation and idempotency

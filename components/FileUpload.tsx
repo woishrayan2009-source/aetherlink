@@ -14,6 +14,7 @@ import { CancelledMessage } from "./upload/CancelledMessage";
 import { UploadControls } from "./upload/UploadControls";
 import { AdvancedSettingsToggle } from "./upload/AdvancedSettingsToggle";
 import { FileSelector } from "./upload/FileSelector";
+import { ShareIDSetter } from "./upload/ShareIDSetter";
 import { NetworkMonitorDisplay } from "./NetworkMonitorDisplay";
 
 import { useUploadState } from "@/hooks/useUploadState";
@@ -88,7 +89,8 @@ export default function FileUpload() {
     await startUpload(
       state.file,
       state.compressionSettings,
-      uploadProfile // Use locked profile
+      uploadProfile, // Use locked profile
+      state.shareId // Pass custom share ID if set
     );
   };
 
@@ -125,6 +127,13 @@ export default function FileUpload() {
                 <FileSelector
                   file={state.file}
                   onFileChange={handleFileChange}
+                />
+
+                <ShareIDSetter
+                  shareId={state.shareId}
+                  onShareIdChange={state.setShareId}
+                  isDark={true}
+                  disabled={state.isUploading}
                 />
 
                 <div className="space-y-4">

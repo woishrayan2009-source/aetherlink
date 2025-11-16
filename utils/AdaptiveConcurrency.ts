@@ -18,6 +18,11 @@ export interface AdaptiveConcurrencyConfig {
   degradationThreshold?: number;  // % degradation to trigger decrease (default: 20)
   errorRateThreshold?: number;    // Error rate % to trigger decrease (default: 10)
   stabilityWindow?: number;       // Samples needed for stability (default: 3)
+  
+  // Timeout and recovery
+  baseTimeout?: number;           // Base timeout for chunk uploads in ms (default: 30000)
+  maxTimeout?: number;            // Maximum timeout in ms (default: 120000)
+  timeoutMultiplier?: number;     // Multiply avg upload time by this for dynamic timeout (default: 5)
 }
 
 export interface NetworkMetrics {
@@ -84,6 +89,9 @@ export class AdaptiveConcurrency {
       degradationThreshold: config.degradationThreshold ?? 20,
       errorRateThreshold: config.errorRateThreshold ?? 10,
       stabilityWindow: config.stabilityWindow ?? 3,
+      baseTimeout: config.baseTimeout ?? 30000,
+      maxTimeout: config.maxTimeout ?? 120000,
+      timeoutMultiplier: config.timeoutMultiplier ?? 5,
     };
     
     this.currentConcurrency = Math.min(
@@ -114,9 +122,18 @@ export class AdaptiveConcurrency {
   }
   
   /**
-   * Get current concurrency level
+   * Get current concurrency level (with defensive bounds check)
    */
   public getConcurrency(): number {
+    // Defensive check: ensure we never return a value outside bounds
+    if (this.currentConcurrency > this.config.max) {
+      console.error(`⚠️ CONCURRENCY OVERFLOW: ${this.currentConcurrency} > ${this.config.max}, clamping to max`);
+      this.currentConcurrency = this.config.max;
+    }
+    if (this.currentConcurrency < this.config.min) {
+      console.error(`⚠️ CONCURRENCY UNDERFLOW: ${this.currentConcurrency} < ${this.config.min}, clamping to min`);
+      this.currentConcurrency = this.config.min;
+    }
     return this.currentConcurrency;
   }
   
@@ -316,6 +333,27 @@ export class AdaptiveConcurrency {
     // Network is unstable (high variance)
     const isUnstable = current.variance > baseline.variance * 1.5;
     
+    // RECOVERY MODE: Detect dramatic performance improvement (throttling removed)
+    // If we were degraded and now performance is much better, aggressively increase workers
+    if (
+      this.isDegraded &&
+      timeImprovement > 50 && // Upload time improved by >50%
+      current.errorRate < 5 &&
+      current.successRate > 90 &&
+      !isUnstable
+    ) {
+      console.log(`🚀 Fast recovery detected: ${timeImprovement.toFixed(0)}% improvement, jumping to higher concurrency`);
+      this.consecutiveImprovements = this.config.stabilityWindow; // Immediate increase
+      this.consecutiveDegradations = 0;
+      this.isDegraded = false;
+      this.emit({ type: 'networkRecovered', metrics: current });
+      
+      // Aggressive increase on recovery
+      if (this.currentConcurrency < this.config.max) {
+        return 1;
+      }
+    }
+    
     // Performance degraded significantly
     if (
       timeImprovement < -this.config.degradationThreshold ||
@@ -395,13 +433,21 @@ export class AdaptiveConcurrency {
     let reason: string;
     
     if (direction > 0) {
-      // Increase
+      // Increase - more aggressive if recently degraded (recovery mode)
+      const wasRecentlyDegraded = this.consecutiveDegradations > 0 || 
+        (now - this.lastAdjustmentTime < this.config.evaluationInterval * 5);
+      
+      const increaseAmount = wasRecentlyDegraded 
+        ? this.config.increaseStep * 2  // Double increase during recovery
+        : this.config.increaseStep;
+      
       newValue = Math.min(
-        this.currentConcurrency + this.config.increaseStep,
+        this.currentConcurrency + increaseAmount,
         this.config.max
       );
-      reason = `Performance improved: ${metrics.averageUploadTime.toFixed(0)}ms/chunk, ` +
-               `${metrics.throughput.toFixed(2)} chunks/s`;
+      reason = wasRecentlyDegraded
+        ? `Fast recovery: ${metrics.averageUploadTime.toFixed(0)}ms/chunk, ${metrics.throughput.toFixed(2)} chunks/s`
+        : `Performance improved: ${metrics.averageUploadTime.toFixed(0)}ms/chunk, ${metrics.throughput.toFixed(2)} chunks/s`;
       
       // Reset improvement counter after successful increase
       this.consecutiveImprovements = 0;
@@ -419,12 +465,23 @@ export class AdaptiveConcurrency {
       this.consecutiveDegradations = 0;
     }
     
+    // DEFENSIVE: Final bounds check before assignment
+    newValue = Math.max(this.config.min, Math.min(newValue, this.config.max));
+    
     if (newValue !== oldValue) {
+      // DEFENSIVE: Validate newValue is within bounds
+      if (newValue < this.config.min || newValue > this.config.max) {
+        console.error(`❌ INVALID CONCURRENCY ADJUSTMENT: ${newValue} outside bounds [${this.config.min}, ${this.config.max}]`);
+        return;
+      }
+      
       this.currentConcurrency = newValue;
       this.lastAdjustmentTime = now;
       
       // Update baseline to current performance after adjustment
       this.baselineMetrics = metrics;
+      
+      console.log(`📊 Concurrency adjusted: ${oldValue} → ${newValue} | Reason: ${reason}`);
       
       this.emit({
         type: 'concurrencyChanged',
@@ -446,6 +503,25 @@ export class AdaptiveConcurrency {
         console.error('Error in AdaptiveConcurrency event listener:', error);
       }
     });
+  }
+  
+  /**
+   * Calculate dynamic timeout based on recent performance
+   */
+  public getTimeout(): number {
+    const recentMetric = this.recentMetrics[this.recentMetrics.length - 1];
+    
+    if (!recentMetric || recentMetric.averageUploadTime === 0) {
+      return this.config.baseTimeout;
+    }
+    
+    // Dynamic timeout: average upload time * multiplier, clamped to min/max
+    const dynamicTimeout = recentMetric.averageUploadTime * this.config.timeoutMultiplier;
+    
+    return Math.min(
+      Math.max(dynamicTimeout, this.config.baseTimeout),
+      this.config.maxTimeout
+    );
   }
   
   /**

@@ -33,7 +33,8 @@ export function useUploadLogic(params: UploadLogicParams) {
     const performUpload = async (
         file: File,
         startTime: number,
-        currentProfile: NetworkProfile
+        currentProfile: NetworkProfile,
+        customShareId?: string
     ) => {
         // CRITICAL: Lock in the chunk size at the START of upload
         // This prevents issues when adaptive mode changes the profile during upload
@@ -96,7 +97,7 @@ export function useUploadLogic(params: UploadLogicParams) {
         // Start upload immediately without computing file hash upfront
         // The server will verify chunks individually, and we'll compute file hash at the end
         const uploadID = `${file.name.replace(/[^a-z0-9.-_]/gi, "")}-${Date.now()}`;
-        const metadata = {
+        const metadata: any = {
             upload_id: uploadID,
             filename: file.name,
             total_chunks: chunks,
@@ -104,6 +105,11 @@ export function useUploadLogic(params: UploadLogicParams) {
             chunk_hashes: [], // Empty - server will validate per chunk if needed
             file_hash: '', // Will compute at completion if needed
         };
+        
+        // Include custom share_id if provided
+        if (customShareId && customShareId.trim()) {
+            metadata.share_id = customShareId.trim();
+        }
 
         const initRes = await fetch(`${DEFAULT_ENDPOINT}/init`, {
             method: "POST",
@@ -148,6 +154,15 @@ export function useUploadLogic(params: UploadLogicParams) {
             // Telemetry: Record chunk start
             params.onChunkStart?.(chunkId, idx);
 
+            // Get dynamic timeout from adaptive manager
+            const timeout = adaptiveManager.getTimeout();
+            
+            // Create abort controller for timeout
+            const abortController = new AbortController();
+            const timeoutId = setTimeout(() => {
+                abortController.abort();
+            }, timeout);
+
             try {
                 // Create a locked profile snapshot to prevent mid-upload changes
                 const lockedProfile: NetworkProfile = {
@@ -155,7 +170,18 @@ export function useUploadLogic(params: UploadLogicParams) {
                     chunkSize: CHUNK_SIZE, // Use locked chunk size
                     workers: adaptiveManager.getConcurrency() // Use adaptive concurrency
                 };
-                await uploadChunk(uploadID, idx, blob, lockedProfile, DEFAULT_ENDPOINT);
+                
+                // Race between upload and timeout
+                await Promise.race([
+                    uploadChunk(uploadID, idx, blob, lockedProfile, DEFAULT_ENDPOINT),
+                    new Promise((_, reject) => {
+                        abortController.signal.addEventListener('abort', () => {
+                            reject(new Error(`Chunk ${idx} timed out after ${timeout}ms`));
+                        });
+                    })
+                ]);
+                
+                clearTimeout(timeoutId);
                 
                 // Record success
                 const chunkDuration = performance.now() - chunkStartTime;
@@ -175,6 +201,8 @@ export function useUploadLogic(params: UploadLogicParams) {
                     bandwidth: (file.size / ((performance.now() - startTime) / 1000)) / 1024 / 1024
                 }));
             } catch (err) {
+                clearTimeout(timeoutId);
+                
                 // Record error
                 const errorMessage = (err as Error).message || 'Unknown error';
                 adaptiveManager.recordChunkError(
@@ -197,8 +225,14 @@ export function useUploadLogic(params: UploadLogicParams) {
                     wastedBytes: prev.wastedBytes + blob.size
                 }));
 
+                // Retry logic with exponential backoff
                 if (attempt < 6) {
-                    await new Promise((r) => setTimeout(r, attempt * 400));
+                    const isTimeout = errorMessage.includes('timed out');
+                    const backoffMs = isTimeout ? attempt * 1000 : attempt * 400;
+                    
+                    console.log(`⚠️ Chunk ${idx} failed (attempt ${attempt}): ${errorMessage}. Retrying in ${backoffMs}ms...`);
+                    
+                    await new Promise((r) => setTimeout(r, backoffMs));
                     return uploadWithRetry(idx, attempt + 1);
                 }
                 throw err;
@@ -212,37 +246,116 @@ export function useUploadLogic(params: UploadLogicParams) {
 
         console.log(`📤 Uploading ${chunksToUpload.length} chunks (${received.length} already received)`);
 
-        // Adaptive worker pool
+        // Adaptive worker pool with strict concurrency control
         const activeUploads = new Map<number, Promise<void>>();
+        const activeWorkerIndices = new Set<number>(); // Track which chunks are being processed
         let queueIndex = 0;
+        let workerSpawnLock = false; // Prevent concurrent worker spawning
 
-        const fillWorkerPool = () => {
-            const maxConcurrent = adaptiveManager.getConcurrency();
-
-            while (activeUploads.size < maxConcurrent && queueIndex < chunksToUpload.length) {
-                const idx = chunksToUpload[queueIndex++];
-
-                const uploadPromise = uploadWithRetry(idx)
-                    .finally(() => {
-                        activeUploads.delete(idx);
-                        params.setActiveWorkers(activeUploads.size);
-                    });
-
-                activeUploads.set(idx, uploadPromise);
+        const fillWorkerPool = async () => {
+            // Prevent concurrent execution of fillWorkerPool (race condition guard)
+            if (workerSpawnLock) {
+                console.log('⚠️ Worker spawn blocked: already spawning workers');
+                return;
             }
+            
+            workerSpawnLock = true;
+            
+            try {
+                const maxConcurrent = adaptiveManager.getConcurrency();
+                
+                // CRITICAL: Defensive cleanup of zombie workers before spawning new ones
+                // Remove any workers that are in the map but promise resolved (shouldn't happen, but defensive)
+                for (const [idx, promise] of Array.from(activeUploads.entries())) {
+                    await Promise.race([
+                        promise.then(() => 'resolved'),
+                        Promise.resolve('pending')
+                    ]).then(status => {
+                        if (status === 'resolved' && activeUploads.has(idx)) {
+                            console.log(`🧹 Cleaned up zombie worker for chunk ${idx}`);
+                            activeUploads.delete(idx);
+                            activeWorkerIndices.delete(idx);
+                        }
+                    });
+                }
+                
+                // Log worker pool state for debugging race conditions
+                const currentWorkers = activeUploads.size;
+                if (currentWorkers > maxConcurrent) {
+                    console.error(`❌ RACE CONDITION DETECTED: ${currentWorkers} workers > ${maxConcurrent} max! Indices: ${Array.from(activeWorkerIndices).join(', ')}`);
+                }
 
-            params.setActiveWorkers(activeUploads.size);
+                // STRICT ENFORCEMENT: Only spawn workers if we're strictly below maxConcurrent
+                while (activeUploads.size < maxConcurrent && queueIndex < chunksToUpload.length) {
+                    // Double-check we're not at limit (defensive check)
+                    if (activeUploads.size >= maxConcurrent) {
+                        console.log(`⚠️ Worker spawn aborted: at maxWorkers (${maxConcurrent})`);
+                        break;
+                    }
+                    
+                    const idx = chunksToUpload[queueIndex++];
+                    
+                    // Prevent duplicate worker for same chunk (shouldn't happen, but defensive)
+                    if (activeWorkerIndices.has(idx)) {
+                        console.error(`❌ DUPLICATE WORKER PREVENTED: chunk ${idx} already being processed`);
+                        continue;
+                    }
+
+                    // Mark worker as active BEFORE creating promise (prevent race)
+                    activeWorkerIndices.add(idx);
+                    activeUploads.set(idx, Promise.resolve()); // Placeholder to reserve slot
+                    
+                    // Log worker creation
+                    console.log(`🚀 Spawning worker for chunk ${idx} (${activeUploads.size}/${maxConcurrent})`);
+
+                    const uploadPromise = uploadWithRetry(idx)
+                        .finally(() => {
+                            // Defensive cleanup: ensure worker is removed from all tracking structures
+                            const wasActive = activeUploads.has(idx);
+                            const wasTracked = activeWorkerIndices.has(idx);
+                            
+                            activeUploads.delete(idx);
+                            activeWorkerIndices.delete(idx);
+                            
+                            console.log(`✅ Worker cleanup for chunk ${idx} (wasActive: ${wasActive}, wasTracked: ${wasTracked}, remaining: ${activeUploads.size})`);
+                            
+                            // Update UI state AFTER worker pool state is updated
+                            params.setActiveWorkers(activeUploads.size);
+                            
+                            // Detect stale references
+                            if (!wasActive || !wasTracked) {
+                                console.error(`❌ STALE WORKER REFERENCE: chunk ${idx} wasActive=${wasActive}, wasTracked=${wasTracked}`);
+                            }
+                        });
+
+                    // Replace placeholder with actual promise
+                    activeUploads.set(idx, uploadPromise);
+                }
+                
+                // Update UI state AFTER all workers spawned
+                params.setActiveWorkers(activeUploads.size);
+                
+            } finally {
+                workerSpawnLock = false;
+            }
         };
 
         // Main upload loop with adaptive concurrency
         while (queueIndex < chunksToUpload.length || activeUploads.size > 0) {
-            fillWorkerPool();
+            await fillWorkerPool(); // Now async and awaited
 
             if (activeUploads.size > 0) {
                 await Promise.race(Array.from(activeUploads.values()));
             }
         }
 
+        // Final defensive cleanup
+        if (activeUploads.size > 0 || activeWorkerIndices.size > 0) {
+            console.error(`❌ WORKER LEAK DETECTED: ${activeUploads.size} uploads, ${activeWorkerIndices.size} indices remaining`);
+            activeUploads.clear();
+            activeWorkerIndices.clear();
+        }
+        
         params.setActiveWorkers(0);
 
         // Stop adaptive manager and log final metrics
@@ -286,7 +399,8 @@ export function useUploadLogic(params: UploadLogicParams) {
     const startUpload = async (
         file: File,
         compressionSettings: any,
-        currentProfile: NetworkProfile
+        currentProfile: NetworkProfile,
+        customShareId?: string
     ) => {
 
         params.setIsUploading(true);
@@ -301,14 +415,14 @@ export function useUploadLogic(params: UploadLogicParams) {
         params.setMetrics(prev => ({ ...prev, startTime, totalBytes: fileToUpload.size }));
 
         try {
-            const { uploadID, shareId } = await performUpload(fileToUpload, startTime, currentProfile);
+            const result = await performUpload(fileToUpload, startTime, currentProfile, customShareId);
 
             const endTime = performance.now();
             params.setUploadTime(((endTime - startTime) / 1000).toFixed(2) + "s");
-            params.setDownloadLink(`${DEFAULT_ENDPOINT.replace(/\/$/, "")}/static/${uploadID}/${encodeURIComponent(fileToUpload.name)}`);
-            params.setShareId(shareId);
+            params.setDownloadLink(`${DEFAULT_ENDPOINT.replace(/\/$/, "")}/static/${result.uploadID}/${encodeURIComponent(fileToUpload.name)}`);
+            params.setShareId(result.shareId);
             
-            return shareId;
+            return result.shareId;
         } catch (err: any) {
             if (params.isCancelling || err?.message === 'Upload cancelled by user') {
                 console.log('Upload cancelled by user');

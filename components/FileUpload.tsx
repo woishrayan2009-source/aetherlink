@@ -24,6 +24,7 @@ import { useUploadLogic } from "@/hooks/useUploadLogic";
 import { useAdaptiveNetworkMonitor } from "@/hooks/useAdaptiveNetworkMonitor";
 import { useUploadTelemetry } from "@/hooks/useUploadTelemetry";
 import { handleFileChange as handleFileChangeUtil } from "@/utils/helpers/fileHandlers";
+import { UploadModeToggle } from "./upload/UploadModeToggle";
 
 export default function FileUpload() {
   const state = useUploadState();
@@ -124,6 +125,7 @@ export default function FileUpload() {
               <UploadHeader />
 
               <div className="relative p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-5 lg:space-y-6">
+                <UploadModeToggle />
                 <FileSelector
                   file={state.file}
                   onFileChange={handleFileChange}

@@ -15,3 +15,7 @@ export { CancelDialog } from './CancelDialog';
 export { CancelledMessage } from './CancelledMessage';
 export { UploadControls } from './UploadControls';
 export { AdvancedSettingsToggle } from './AdvancedSettingsToggle';
+export { MultiFileSelector } from './MultiFileSelector';
+export { MultiFileProgressList } from './MultiFileProgressList';
+export { MultiFileOverview } from './MultiFileOverview';
+export { UploadModeToggle } from './UploadModeToggle';

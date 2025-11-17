@@ -116,7 +116,12 @@ export function useMultiFileUpload(params: UseMultiFileUploadParams = {}) {
         signal: abortController.signal,
       });
 
-      if (!initRes.ok) throw new Error(`Init failed: ${initRes.status}`);
+      if (!initRes.ok) {
+        const errorData = await initRes.json().catch(() => ({}));
+        const errorMsg = errorData.error || `Init failed: ${initRes.status}`;
+        throw new Error(errorMsg);
+      }
+
 
       const initData = await initRes.json() as { upload_id: string; share_id: string };
       const shareId = initData.share_id;
@@ -253,11 +258,21 @@ export function useMultiFileUpload(params: UseMultiFileUploadParams = {}) {
         signal: abortController.signal,
       });
 
-      if (!completeRes.ok) throw new Error(`Complete failed: ${completeRes.status}`);
+      if (!completeRes.ok) {
+        const errorData = await completeRes.json().catch(() => ({}));
+        const errorMsg = errorData.error || `Complete failed: ${completeRes.status}`;
+        throw new Error(errorMsg);
+      }
+
+      const completeData = await completeRes.json();
 
       const endTime = performance.now();
       const uploadTime = ((endTime - fileState.startTime!) / 1000).toFixed(2) + 's';
-      const downloadLink = `${DEFAULT_ENDPOINT.replace(/\/$/, '')}/static/${uploadId}/${encodeURIComponent(file.name)}`;
+      
+      // Use the download URL from server response if available, otherwise construct it
+      const downloadLink = completeData.download_url 
+        ? `${DEFAULT_ENDPOINT.replace(/\/$/, '')}${completeData.download_url}`
+        : `${DEFAULT_ENDPOINT.replace(/\/$/, '')}/static/${uploadId}/${encodeURIComponent(file.name)}`;
 
       // Calculate cost comparison
       const fileSizeMB = file.size / 1024 / 1024;
@@ -276,28 +291,35 @@ export function useMultiFileUpload(params: UseMultiFileUploadParams = {}) {
         wastedMultiplier: dynamicWastedMultiplier,
       };
 
-      updateFileState(uploadId, {
+      const completedState: Partial<FileUploadState> = {
         status: 'completed',
         downloadLink,
         uploadTime,
         costComparison,
         progress: 100,
         activeWorkers: 0,
-      });
+      };
+      
+      updateFileState(uploadId, completedState);
 
-      callbacks?.onFileComplete?.(state.files.find(f => f.uploadId === uploadId)!);
+      // Pass updated file state to callback
+      const updatedFileState = { ...fileState, ...completedState };
+      callbacks?.onFileComplete?.(updatedFileState as FileUploadState);
 
     } catch (err: any) {
       const errorMessage = err?.message || 'Upload failed';
       
-      updateFileState(uploadId, {
+      const failedState: Partial<FileUploadState> = {
         status: isCancellingRef.current ? 'cancelled' : 'failed',
         error: errorMessage,
         activeWorkers: 0,
-      });
+      };
+      
+      updateFileState(uploadId, failedState);
 
       if (!isCancellingRef.current) {
-        callbacks?.onFileError?.(fileState, errorMessage);
+        const updatedFileState = { ...fileState, ...failedState };
+        callbacks?.onFileError?.(updatedFileState as FileUploadState, errorMessage);
       }
     } finally {
       activeUploadsRef.current.delete(uploadId);

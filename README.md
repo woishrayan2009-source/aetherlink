@@ -23,8 +23,6 @@
 2. Share ID with recipient
 3. Recipient enters Share ID → Access files
 
-**[Read full security documentation →](docs/SHARE_ID_ACCESS_CONTROL.md)**
-
 ---
 
 ## What This Is

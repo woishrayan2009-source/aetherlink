@@ -19,3 +19,4 @@ export { MultiFileSelector } from './MultiFileSelector';
 export { MultiFileProgressList } from './MultiFileProgressList';
 export { MultiFileOverview } from './MultiFileOverview';
 export { UploadModeToggle } from './UploadModeToggle';
+export { QRCodeGenerator } from './QRCodeGenerator';

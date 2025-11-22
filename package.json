@@ -16,8 +16,10 @@
     "browser-image-compression": "^2.0.2",
     "lucide-react": "^0.552.0",
     "next": "16.0.1",
+    "qrcode": "^1.5.4",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "react-qr-code": "^2.0.18",
     "xxhash-wasm": "^1.1.0"
   },
   "devDependencies": {

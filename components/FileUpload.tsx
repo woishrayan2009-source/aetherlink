@@ -16,6 +16,7 @@ import { AdvancedSettingsToggle } from "./upload/AdvancedSettingsToggle";
 import { FileSelector } from "./upload/FileSelector";
 import { ShareIDSetter } from "./upload/ShareIDSetter";
 import { NetworkMonitorDisplay } from "./NetworkMonitorDisplay";
+import { QRCodeGenerator } from "./upload/QRCodeGenerator";
 
 import { useUploadState } from "@/hooks/useUploadState";
 import { useNetworkDetection } from "@/hooks/useNetworkDetection";
@@ -134,6 +135,13 @@ export default function FileUpload() {
                 <ShareIDSetter
                   shareId={state.shareId}
                   onShareIdChange={state.setShareId}
+                  isDark={true}
+                  disabled={state.isUploading}
+                />
+
+                {/* QR Code Generator */}
+                <QRCodeGenerator
+                  shareId={state.shareId}
                   isDark={true}
                   disabled={state.isUploading}
                 />

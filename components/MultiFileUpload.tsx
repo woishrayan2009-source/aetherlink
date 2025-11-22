@@ -9,6 +9,7 @@ import { NetworkMonitorDisplay } from "./NetworkMonitorDisplay";
 import { AdvancedSettingsToggle } from "./upload/AdvancedSettingsToggle";
 import { NetworkSelector } from "./upload/NetworkSelector";
 import { UploadModeToggle } from "./upload/UploadModeToggle";
+import { QRCodeGenerator } from "./upload/QRCodeGenerator";
 
 import { useMultiFileUpload } from "@/hooks/useMultiFileUpload";
 import { useNetworkDetection } from "@/hooks/useNetworkDetection";
@@ -108,6 +109,13 @@ export default function MultiFileUpload() {
                 <ShareIDSetter
                   shareId={customShareId}
                   onShareIdChange={setCustomShareId}
+                  isDark={true}
+                  disabled={multiUpload.state.isUploading}
+                />
+
+                {/* QR Code Generator */}
+                <QRCodeGenerator
+                  shareId={customShareId}
                   isDark={true}
                   disabled={multiUpload.state.isUploading}
                 />

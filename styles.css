@@ -1,0 +1,195 @@
+:root {
+  color-scheme: dark;
+  --bg: #020617;
+  --surface: rgba(15, 23, 42, 0.88);
+  --surface-strong: rgba(15, 23, 42, 0.98);
+  --text: #f8fafc;
+  --muted: #a5b4fc;
+  --accent: #38bdf8;
+  --accent-strong: #0ea5e9;
+  --border: rgba(148, 163, 184, 0.2);
+  --shadow: 0 30px 80px rgba(0, 0, 0, 0.16);
+}
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top, rgba(56, 189, 248, 0.16), transparent 25%),
+              radial-gradient(circle at bottom left, rgba(99, 102, 241, 0.2), transparent 18%),
+              radial-gradient(circle at bottom right, rgba(168, 85, 247, 0.16), transparent 18%),
+              var(--bg);
+  color: var(--text);
+}
+
+body.light {
+  color-scheme: light;
+  --bg: #f8fafc;
+  --surface: rgba(255, 255, 255, 0.92);
+  --surface-strong: rgba(255, 255, 255, 1);
+  --text: #0f172a;
+  --muted: #475569;
+  --accent: #0284c7;
+  --accent-strong: #0369a1;
+  --border: rgba(148, 163, 184, 0.25);
+  --shadow: 0 30px 80px rgba(15, 23, 42, 0.08);
+  background: radial-gradient(circle at top, rgba(56, 189, 248, 0.14), transparent 25%),
+              radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.12), transparent 18%),
+              radial-gradient(circle at bottom right, rgba(168, 85, 247, 0.12), transparent 18%),
+              var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.page-shell {
+  position: relative;
+  min-height: 100vh;
+  padding: 2rem 1.25rem 3rem;
+}
+
+.theme-toggle {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-strong);
+  color: var(--text);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: transform 180ms ease, background-color 180ms ease, color 180ms ease;
+  z-index: 20;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-1px);
+}
+
+.hero {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding-top: 4rem;
+}
+
+.hero-content {
+  padding: 3rem;
+  border-radius: 32px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.1rem;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.16);
+  color: var(--accent);
+  font-weight: 700;
+  margin-bottom: 1.5rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2.75rem, 4vw, 4.5rem);
+  line-height: 1.02;
+}
+
+p {
+  margin: 1.25rem auto 0;
+  max-width: 720px;
+  color: var(--muted);
+  line-height: 1.75;
+}
+
+.cards {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 3rem;
+}
+
+.card {
+  display: grid;
+  gap: 1rem;
+  padding: 2rem;
+  border-radius: 28px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transition: transform 220ms ease, border-color 220ms ease, background-color 220ms ease;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+}
+
+.card-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: rgba(56, 189, 248, 0.14);
+  font-size: 1.6rem;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 1.7rem;
+}
+
+.card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.card span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--accent-strong);
+  font-weight: 700;
+}
+
+.card-sender .card-icon {
+  background: rgba(56, 189, 248, 0.18);
+}
+
+.card-receiver .card-icon {
+  background: rgba(168, 85, 247, 0.18);
+}
+
+.footer {
+  margin-top: 3rem;
+  text-align: center;
+  color: var(--muted);
+}
+
+@media (min-width: 720px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .page-shell {
+    padding: 1.5rem 1rem 2rem;
+  }
+
+  .hero-content {
+    padding: 2rem;
+  }
+}
